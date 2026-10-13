@@ -1,0 +1,5 @@
+moviepy>=2.1,<3
+Pillow>=10.1
+numpy
+edge-tts>=6.1
+requests
