@@ -71,6 +71,24 @@ def background_prompt(description, style, mood, fmt="short"):
     )
 
 
+# Short prompts for local models (Stable Diffusion reads only the first ~77
+# tokens). The important words come first: style, kid safety, layout, then the
+# description, so only the end of a long description can be cut off.
+SAFE_CORE = "kid-friendly, wholesome, family-safe, non-violent"
+
+
+def compact_character_prompt(character, style):
+    short_style = style_text(style).split(",")[0]
+    return make_safe(f"{short_style}, {SAFE_CORE}, full body, single character, standing, "
+                     f"plain white background, {character['description'].strip()}")
+
+
+def compact_background_prompt(description, style, mood):
+    short_style = style_text(style).split(",")[0]
+    return make_safe(f"{short_style}, {SAFE_CORE}, background scenery, no people, "
+                     f"{description.strip()}, {mood}")
+
+
 # ---------------------------------------------------------------------------
 # Background removal (character pictures -> transparent PNG)
 # ---------------------------------------------------------------------------
@@ -228,7 +246,8 @@ class Library:
 
         image, provider = self.chain.generate(prompt, *CHARACTER_SIZE, seed=data.get("seed", 1),
                                               label=f"character {data['id']}",
-                                              negative=CONFIG["safety"]["negative"])
+                                              negative=CONFIG["safety"]["negative"],
+                                              compact=compact_character_prompt(data, self.style))
         self.status[f"character {data['id']}"] = provider
         if image is None:
             return None
@@ -269,7 +288,8 @@ class Library:
 
         size = BACKGROUND_SIZE[self.fmt]
         image, provider = self.chain.generate(prompt, *size, seed=zlib.crc32(scene.encode()) % 100000,
-                                              label=f"scene {scene}", negative=CONFIG["safety"]["negative"])
+                                              label=f"scene {scene}", negative=CONFIG["safety"]["negative"],
+                                              compact=compact_background_prompt(self.scenes[scene], self.style, mood))
         self.status[f"scene {scene}"] = provider
         if image is None:
             return None

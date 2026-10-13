@@ -22,10 +22,12 @@ DEFAULTS = {
                  "intro_seconds": 4, "outro_seconds": 7},
     },
     "image_providers": {
-        "order": ["pollinations", "gemini", "huggingface"],
+        "order": ["pollinations", "local_sd", "gemini", "huggingface"],
         "disable_after_failures": 3,
         "pollinations": {"url": "https://image.pollinations.ai/prompt/{prompt}", "model": "flux",
                          "timeout": 120, "tries": 4, "delay_seconds": 15, "backoff_seconds": 20},
+        "local_sd": {"model": "stabilityai/sd-turbo", "variant": "fp16", "steps": 2, "size": 512,
+                     "max_side": 768, "threads": 0, "cache_dir": None, "tries": 1, "delay_seconds": 0},
         "gemini": {"model": "gemini-2.5-flash-image", "timeout": 120, "tries": 3,
                    "delay_seconds": 5, "backoff_seconds": 20},
         "huggingface": {"url": "https://router.huggingface.co/hf-inference/models/{model}",

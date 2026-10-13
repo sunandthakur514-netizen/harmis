@@ -12,12 +12,17 @@ ImageChain tries the providers in the order from config.yaml. Each provider:
   * waits `timeout` seconds for a picture,
   * on a rate limit (HTTP 429), a timeout or a busy server (502/503/504) waits
     and tries again with growing pauses, up to `tries` times.
-Rate limits never switch a provider off; only repeated real errors do.
+Rate limits never switch a provider off; only repeated real errors do. A
+"payment required" answer (HTTP 402) switches it off at once for this run.
+
+local_sd runs Stable Diffusion Turbo on your own computer's CPU: no limits, no
+key, but it needs the optional packages in requirements-local-sd.txt.
 If all providers fail the caller draws the simple shape style instead, so a
 video is always produced.
 """
 
 import base64
+import importlib.util
 import io
 import os
 import threading
@@ -25,7 +30,7 @@ import time
 import urllib.parse
 
 import requests
-from PIL import Image
+from PIL import Image, ImageOps
 
 from .config import CONFIG
 
@@ -67,7 +72,8 @@ class ImageProvider:
     def available(self):
         return True, ""
 
-    def generate(self, prompt, width, height, seed, negative=""):
+    def generate(self, prompt, width, height, seed, negative="", compact=None):
+        """compact: a short version of the prompt for models that read only ~77 tokens."""
         raise NotImplementedError
 
 
@@ -75,7 +81,7 @@ class PollinationsProvider(ImageProvider):
     """Pollinations.ai: free, no key needed. POLLINATIONS_TOKEN (optional) gives higher limits."""
     name = "pollinations"
 
-    def generate(self, prompt, width, height, seed, negative=""):
+    def generate(self, prompt, width, height, seed, negative="", compact=None):
         url = self.settings["url"].format(prompt=urllib.parse.quote(prompt, safe=""))
         params = {"width": width, "height": height, "seed": seed, "nologo": "true",
                   "safe": "true", "model": self.settings.get("model", "flux")}
@@ -100,7 +106,7 @@ class GeminiProvider(ImageProvider):
             return False, "no GEMINI_API_KEY"
         return True, ""
 
-    def generate(self, prompt, width, height, seed, negative=""):
+    def generate(self, prompt, width, height, seed, negative="", compact=None):
         # Gemini takes an aspect ratio instead of a size; pick the closest one.
         ratio = min(self.RATIOS, key=lambda r: abs(self.RATIOS[r] - width / height))
         response = requests.post(
@@ -128,7 +134,7 @@ class HuggingFaceProvider(ImageProvider):
             return False, "no HF_TOKEN"
         return True, ""
 
-    def generate(self, prompt, width, height, seed, negative=""):
+    def generate(self, prompt, width, height, seed, negative="", compact=None):
         response = requests.post(
             self.settings["url"].format(model=self.settings["model"]),
             headers={"Authorization": f"Bearer {os.environ['HF_TOKEN']}", "Accept": "image/png"},
@@ -140,14 +146,89 @@ class HuggingFaceProvider(ImageProvider):
         return _image_from_bytes(response.content)
 
 
-PROVIDERS = {cls.name: cls for cls in (PollinationsProvider, GeminiProvider, HuggingFaceProvider)}
+class ModelUnavailable(Exception):
+    """The local model could not be loaded (not downloaded yet and no internet, out of memory, ...)."""
+
+
+class LocalSDProvider(ImageProvider):
+    """Stable Diffusion Turbo on your own CPU: free and unlimited (optional packages needed).
+
+    The model (about 2.5 GB) is downloaded once from Hugging Face and cached. It
+    makes a small picture (512 px on the short side) in 1-4 steps, which is then
+    enlarged with Pillow (LANCZOS) to the size HARMIS needs.
+    """
+    name = "local_sd"
+    _pipe = None  # loaded once per run and shared
+
+    def available(self):
+        missing = [m for m in ("torch", "diffusers", "transformers") if importlib.util.find_spec(m) is None]
+        if missing:
+            return False, (f"{', '.join(missing)} not installed; to use it: "
+                           "pip install -r requirements-local-sd.txt (see README)")
+        return True, ""
+
+    def _load(self):
+        if LocalSDProvider._pipe is not None:
+            return LocalSDProvider._pipe
+        import torch
+        from diffusers import AutoPipelineForText2Image
+
+        torch.set_num_threads(int(self.settings.get("threads") or os.cpu_count() or 2))
+        model = self.settings.get("model", "stabilityai/sd-turbo")
+        cache_dir = self.settings.get("cache_dir") or None
+        print(f"[images] local_sd: loading {model} on the CPU "
+              "(the first time this downloads about 2.5 GB, then it is cached) ...")
+        start = time.time()
+        pipe, last_error = None, None
+        for variant in dict.fromkeys([self.settings.get("variant") or None, None]):  # fp16 files: half the download
+            try:
+                pipe = AutoPipelineForText2Image.from_pretrained(
+                    model, torch_dtype=torch.float32, variant=variant, cache_dir=cache_dir)
+                break
+            except Exception as error:
+                last_error = error
+        if pipe is None:
+            raise ModelUnavailable(f"could not load {model}: {' '.join(str(last_error).split())[:150]}")
+        pipe = pipe.to("cpu")
+        pipe.set_progress_bar_config(disable=True)
+        LocalSDProvider._pipe = pipe
+        print(f"[images] local_sd: model ready in {time.time() - start:.0f}s")
+        return pipe
+
+    def small_size(self, width, height):
+        """512 on the short side, the long side following the aspect ratio (multiple of 64)."""
+        base = int(self.settings.get("size", 512))
+        longest = int(self.settings.get("max_side", 768))
+        if width == height:
+            return base, base
+        long_side = min(longest, max(base, round(base * max(width, height) / min(width, height) / 64) * 64))
+        return (base, long_side) if width < height else (long_side, base)
+
+    def generate(self, prompt, width, height, seed, negative="", compact=None):
+        import torch
+        pipe = self._load()
+        w, h = self.small_size(width, height)
+        image = pipe(
+            prompt=compact or prompt,
+            num_inference_steps=max(1, min(4, int(self.settings.get("steps", 2)))),
+            guidance_scale=0.0,  # SD Turbo is made to run without guidance
+            width=w, height=h,
+            generator=torch.Generator("cpu").manual_seed(int(seed)),
+        ).images[0]
+        return ImageOps.fit(image.convert("RGB"), (width, height), Image.LANCZOS)
+
+
+PROVIDERS = {cls.name: cls for cls in (PollinationsProvider, LocalSDProvider, GeminiProvider, HuggingFaceProvider)}
 
 
 RATE_LIMIT, BUSY, FATAL, OTHER = "rate limited", "busy", "fatal", "error"
+PAYMENT, UNAVAILABLE = "payment required", "unavailable"  # switch the provider off for this run
 
 
 def classify(error):
     """What kind of failure is this? Decides whether to wait, retry or give up."""
+    if isinstance(error, ModelUnavailable):
+        return UNAVAILABLE
     if isinstance(error, requests.Timeout):
         return RATE_LIMIT  # free services time out when they are overloaded
     if isinstance(error, requests.HTTPError) and error.response is not None:
@@ -156,7 +237,9 @@ def classify(error):
             return RATE_LIMIT
         if code in (502, 503, 504):
             return BUSY
-        if code in (400, 401, 402, 403, 404):
+        if code == 402:
+            return PAYMENT
+        if code in (400, 401, 403, 404):
             return FATAL  # wrong key, blocked or bad request: retrying will not help
     return OTHER
 
@@ -199,17 +282,19 @@ class ImageChain:
         self.failures = {p.name: 0 for p in self.providers}  # real errors in a row (not rate limits)
         self.used = {}  # label -> provider name (or "shapes")
 
-    def _try(self, provider, prompt, width, height, seed, negative, label):
-        """One provider, up to `tries` attempts. Returns an image, or raises (error, kind)."""
+    def _try(self, provider, prompt, width, height, seed, negative, label, compact):
+        """One provider, up to `tries` attempts. Returns (image, seconds), or raises ProviderFailed."""
         for attempt in range(1, provider.tries + 1):
             with provider._lock:
                 provider.wait_turn()
+                start = time.time()
                 try:
-                    return provider.generate(prompt, width, height, seed, negative)
+                    return provider.generate(prompt, width, height, seed, negative, compact), time.time() - start
                 except Exception as caught:
                     error, kind = caught, classify(caught)
-            print(f"[images] {label}: {provider.name} try {attempt}/{provider.tries} failed ({kind}): {describe(error)}")
-            if kind == FATAL or attempt == provider.tries:
+            print(f"[images] {label}: {provider.name} try {attempt}/{provider.tries} failed after "
+                  f"{time.time() - start:.1f}s ({kind}): {describe(error)}")
+            if kind in (FATAL, PAYMENT, UNAVAILABLE) or attempt == provider.tries:
                 raise ProviderFailed(error, kind)
             if kind in (RATE_LIMIT, BUSY):
                 wait = retry_after(error) or provider.backoff * 2 ** (attempt - 1)
@@ -219,22 +304,26 @@ class ImageChain:
             print(f"[images]   waiting {wait:.0f}s, then trying again ...")
             time.sleep(wait)
 
-    def generate(self, prompt, width, height, seed, label, negative=""):
+    def generate(self, prompt, width, height, seed, label, negative="", compact=None):
         """Return (image, provider name) or (None, "shapes") if every provider failed."""
         for provider in self.providers:
             if self.failures[provider.name] >= self.disable_after:
-                continue  # this provider keeps failing with real errors in this run
+                continue  # switched off for this run
             try:
-                image = self._try(provider, prompt, width, height, seed, negative, label)
+                image, seconds = self._try(provider, prompt, width, height, seed, negative, label, compact)
                 self.failures[provider.name] = 0
                 self.used[label] = provider.name
-                print(f"[images] {label}: made by {provider.name}")
+                print(f"[images] {label}: made by {provider.name} in {seconds:.1f}s")
                 return image, provider.name
             except ProviderFailed as failed:
                 if failed.kind in (RATE_LIMIT, BUSY):
                     # Only busy: keep using this provider for the next pictures.
                     print(f"[images] {label}: {provider.name} still {failed.kind} after "
                           f"{provider.tries} tries; it stays on for the next pictures")
+                elif failed.kind in (PAYMENT, UNAVAILABLE):
+                    self.failures[provider.name] = self.disable_after
+                    why = "asks for payment (HTTP 402)" if failed.kind == PAYMENT else "cannot be used"
+                    print(f"[images] {provider.name} {why}: skipping it for the rest of this run")
                 else:
                     self.failures[provider.name] += 1
                     if self.failures[provider.name] >= self.disable_after:

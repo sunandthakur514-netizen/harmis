@@ -1,0 +1,15 @@
+# OPTIONAL: the "local_sd" picture provider (Stable Diffusion Turbo on your own CPU).
+# Free and unlimited, but a bigger install (~1 GB of packages + a 2.5 GB model,
+# downloaded once). The main HARMIS install (requirements.txt) does not need it.
+#
+# Install AFTER requirements.txt:
+#     pip install -r requirements-local-sd.txt
+#
+# The line below makes pip take the small CPU-only build of torch (~200 MB).
+# Without it, Linux gets the CUDA build, which pulls in several GB of GPU libraries.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.4
+diffusers>=0.30
+transformers>=4.44
+accelerate>=0.33
+safetensors>=0.4

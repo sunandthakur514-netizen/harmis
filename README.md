@@ -55,10 +55,18 @@ The style is added to every picture prompt. Each style has its own pictures.
 
 Every picture is requested from these providers, in this order (change it in `config.yaml`):
 
-1. **Pollinations.ai**: free, no key needed
-2. **Gemini image generation**: only if `GEMINI_API_KEY` is set
-3. **Hugging Face free inference**: only if `HF_TOKEN` is set (free account at huggingface.co)
-4. **Simple shape style**: drawn by HARMIS itself, always works
+1. **Pollinations.ai**: free, no key needed. Its free tier can stop after a
+   picture or two with *HTTP 402 Payment Required*. HARMIS then skips it for the
+   rest of the run straight away.
+2. **local_sd**: Stable Diffusion Turbo on **your own CPU**. Free and unlimited,
+   but optional (see [Unlimited local pictures](#unlimited-local-pictures-local_sd)).
+   Skipped with a log line if its packages are not installed.
+3. **Gemini image generation**: only if `GEMINI_API_KEY` is set
+4. **Hugging Face free inference**: only if `HF_TOKEN` is set (free account at huggingface.co)
+5. **Simple shape style**: drawn by HARMIS itself, always works
+
+Every picture's log line says which provider made it and how long it took, for
+example `character birbal: made by local_sd in 41.3s`.
 
 Free services limit how fast you may ask, so HARMIS is patient:
 
@@ -188,7 +196,10 @@ under `safety:` in `config.yaml`. Horror stays mild and is marked 13+.
 
    The first time a background is removed, rembg downloads its model (about 170 MB) once.
 
-4. *(Optional)* Free API keys for more picture providers and AI-written stories:
+4. *(Optional)* Unlimited pictures on your own CPU: see
+   [Unlimited local pictures](#unlimited-local-pictures-local_sd).
+
+5. *(Optional)* Free API keys for more picture providers and AI-written stories:
 
    ```bash
    export GEMINI_API_KEY="your-key"   # https://aistudio.google.com/apikey  (stories + pictures)
@@ -224,7 +235,7 @@ Options:
 - `--format short|long`: vertical 30–60 s (default) or 16:9 5–7 minutes
 - `--lang hindi|hinglish|english`: the language (default from `config.yaml`: `hindi`)
 - `--style storybook|3d_cartoon|anime`: the art style (default from `config.yaml` per genre)
-- `--providers pollinations,gemini,huggingface`: which picture providers to try, in order;
+- `--providers pollinations,local_sd,gemini,huggingface`: which picture providers to try, in order;
   `--providers none` turns AI pictures off
 - `--refresh-images`: make new pictures even if cached ones exist
 - `--offline`: do not call Gemini for the story
@@ -275,6 +286,56 @@ Long stories (`--format long`, 5–7 minutes, Hindi):
 The folk tales are public domain and everything else is original. There are no
 copyrighted characters or songs. To add your own story, copy an entry in
 `harmis/samples.py` (short) or `harmis/samples_long.py` (long).
+
+## Unlimited local pictures (`local_sd`)
+
+`local_sd` makes pictures on your own computer with **Stable Diffusion Turbo**
+(`stabilityai/sd-turbo`), using only the CPU, so there is no GPU, key or limit.
+The model makes a 512 px picture (512x768 for tall or wide ones) in 1–4 steps,
+and HARMIS enlarges it with Pillow (LANCZOS) to the size it needs.
+
+It is optional, because it is a bigger install: about 1 GB of packages, plus the
+2.5 GB model, which is downloaded **once** on the first picture and then cached
+(normal Hugging Face cache, or `cache_dir` in `config.yaml`).
+
+**Install** (after the normal `pip install -r requirements.txt`):
+
+```bash
+pip install torch --index-url https://download.pytorch.org/whl/cpu   # small CPU-only torch
+pip install -r requirements-local-sd.txt
+python -c "import torch; print(torch.__version__)"   # should end in +cpu
+```
+
+The first line matters on Linux (and Codespaces): without it pip installs the
+CUDA build of torch, which pulls in several GB of GPU libraries you do not need.
+
+**Python 3.14 (Codespaces):** torch publishes Python 3.14 wheels (torch 2.11 and
+newer), so this should work directly. If pip says *"No matching distribution
+found for torch"*, use Python 3.12 in a separate virtual environment:
+
+```bash
+sudo apt-get update && sudo apt-get install -y python3.12 python3.12-venv   # or: uv python install 3.12
+python3.12 -m venv .venv312
+source .venv312/bin/activate
+pip install -r requirements.txt
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements-local-sd.txt
+```
+
+**Speed:** on a CPU, expect roughly 10–60 seconds per picture, depending on the
+machine (a 2-core Codespace is at the slow end). The first picture also loads the
+model (and downloads it the first time). Making the pictures in advance is easiest:
+
+```bash
+python -m harmis.prepare --story birbal_khichdi --style 3d_cartoon
+```
+
+To use **only** the local model (no internet services): `--providers local_sd`.
+Settings (`steps`, `size`, `threads`, `cache_dir`) are under `local_sd:` in `config.yaml`.
+
+**Licence:** SD-Turbo comes with Stability AI's own model licence. Check it on the
+model page (<https://huggingface.co/stabilityai/sd-turbo>) before you publish
+videos made with it commercially (for example monetised YouTube).
 
 ## Good to know
 
