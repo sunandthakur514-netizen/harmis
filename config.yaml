@@ -7,10 +7,25 @@ defaults:
   output_dir: output
 
 video:
-  fps: 30
-  min_seconds: 30        # shorter videos get a longer ending card
-  max_seconds: 60        # longer stories are swapped for a built-in one
   crossfade_seconds: 0.6 # fade between scenes
+  chunk_seconds: 60      # long videos are rendered in pieces of this length (keeps memory low)
+
+# Video formats (--format short | long)
+formats:
+  short:                 # YouTube Shorts / Instagram Reels
+    width: 1080
+    height: 1920
+    fps: 30
+    min_seconds: 30      # shorter videos get a longer ending card
+    max_seconds: 60      # longer stories are swapped for a built-in one
+  long:                  # normal YouTube video
+    width: 1920
+    height: 1080
+    fps: 24
+    min_seconds: 300     # 5 minutes (just a warning if the story is shorter)
+    max_seconds: 420     # 7 minutes (just a warning if the story is longer)
+    intro_seconds: 4     # title card at the start
+    outro_seconds: 7     # "Like & Subscribe" card at the end
 
 # ---------------------------------------------------------------------------
 # Image providers, tried in this order for every picture.
@@ -19,24 +34,38 @@ video:
 # ---------------------------------------------------------------------------
 image_providers:
   order: [pollinations, gemini, huggingface]
-  disable_after_failures: 2   # stop asking a provider that keeps failing in this run
+  # Stop asking a provider after this many REAL errors in a row in one run.
+  # Rate limits (HTTP 429), timeouts and busy servers never count.
+  disable_after_failures: 3
 
-  pollinations:               # free, no key needed
+  # Settings for every provider:
+  #   timeout:          seconds to wait for one picture
+  #   tries:            attempts per picture (rate limits and timeouts are retried)
+  #   delay_seconds:    pause between two requests (requests are always one at a time)
+  #   backoff_seconds:  first wait after a rate limit; doubles on every new try
+
+  pollinations:               # free, no key needed; set POLLINATIONS_TOKEN for higher limits
     url: https://image.pollinations.ai/prompt/{prompt}
     model: flux
     timeout: 120
-    retries: 2
+    tries: 4
+    delay_seconds: 15
+    backoff_seconds: 20
 
   gemini:                     # needs the GEMINI_API_KEY environment variable
     model: gemini-2.5-flash-image
     timeout: 120
-    retries: 1
+    tries: 3
+    delay_seconds: 5
+    backoff_seconds: 20
 
   huggingface:                # needs the HF_TOKEN environment variable (free account)
     url: https://router.huggingface.co/hf-inference/models/{model}
     model: black-forest-labs/FLUX.1-schnell
     timeout: 120
-    retries: 2
+    tries: 3
+    delay_seconds: 5
+    backoff_seconds: 20
 
 # Character pictures get their background removed so they can stand on any scene.
 background_removal:

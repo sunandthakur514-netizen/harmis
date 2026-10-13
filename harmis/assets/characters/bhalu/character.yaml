@@ -1,0 +1,12 @@
+# Bhalu Dada, the wise old bear who leads the jungle animals
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Bhalu              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: भालू दादा
+  english: Bear Dada
+gender: m               # m / f (picks the voice)
+age: old            # child / adult / old
+seed: 1122              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a kind old brown bear with a grey muzzle, small round glasses and a walking stick,
+  wearing a simple orange shawl, standing upright

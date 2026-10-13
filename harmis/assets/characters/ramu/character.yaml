@@ -1,0 +1,12 @@
+# Ramu, the servant who learns to be honest (Akbar-Birbal)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Ramu              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: रामू
+  english: Ramu
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+seed: 1124              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a thin young Indian servant in his 20s with messy black hair, wearing a simple faded
+  brown kurta and white pyjama, a cloth over his shoulder, nervous expression

@@ -10,7 +10,8 @@ Characters live in harmis/assets/characters/<id>/:
 Backgrounds live in harmis/assets/backgrounds/:
     scenes.yaml           every scene and its description
     <scene>.png           YOUR OWN background (optional). Always wins.
-    <scene>__<style>.png  generated background (cached) + .json
+    <scene>__<style>.png        generated vertical background (short videos), cached + .json
+    <scene>__<style>__wide.png  generated 16:9 background (long videos), cached + .json
 
 A picture is generated once and then reused in every video, so characters look
 the same each time. If the description, style or safety words change, the prompt
@@ -34,7 +35,9 @@ BACKGROUND_DIR = os.path.join(ASSETS, "backgrounds")
 
 # Sizes we ask the providers for (they are resized later).
 CHARACTER_SIZE = (768, 1024)
-BACKGROUND_SIZE = (768, 1344)  # 9:16
+BACKGROUND_SIZE = {"short": (768, 1344), "long": (1344, 768)}  # 9:16 and 16:9
+COMPOSITION = {"short": "tall vertical composition", "long": "wide horizontal 16:9 composition"}
+CACHE_SUFFIX = {"short": "", "long": "__wide"}
 
 
 # ---------------------------------------------------------------------------
@@ -60,10 +63,10 @@ def character_prompt(character, style):
     )
 
 
-def background_prompt(description, style, mood):
+def background_prompt(description, style, mood, fmt="short"):
     return make_safe(
         f"{style_text(style)}. Background scenery only: {description.strip()}. {mood}. "
-        "Empty scene with no people, no animals, no characters, tall vertical composition, "
+        f"Empty scene with no people, no animals, no characters, {COMPOSITION[fmt]}, "
         f"detailed environment. {CONFIG['safety']['always_add']}"
     )
 
@@ -148,11 +151,13 @@ def _save_meta(json_path, prompt, provider, style):
 
 
 class Library:
-    def __init__(self, chain, style, genre, refresh=False):
+    def __init__(self, chain, style, genre, refresh=False, fmt="short"):
         self.chain = chain      # ImageChain (may have no providers at all)
         self.style = style
         self.genre = genre
         self.refresh = refresh  # True = ignore cached generated pictures
+        self.fmt = fmt          # "short" (vertical) or "long" (16:9) backgrounds
+        self.status = {}        # picture label -> "cached", "your own picture", provider name or "shapes"
         self.characters = {}    # id -> data from character.yaml
         for folder in sorted(os.listdir(CHARACTER_DIR)):
             path = os.path.join(CHARACTER_DIR, folder, "character.yaml")
@@ -207,6 +212,7 @@ class Library:
         custom = os.path.join(folder, "custom.png")
         if os.path.exists(custom):
             image = Image.open(custom)
+            self.status[f"character {data['id']}"] = "your own picture"
             print(f"[library] {data['id']}: using your custom.png")
             return image.convert("RGBA") if has_transparency(image.convert("RGBA")) else remove_background(image)
 
@@ -216,12 +222,14 @@ class Library:
         if not self.refresh:
             cached = _load_cached(png, meta, prompt)
             if cached is not None:
+                self.status[f"character {data['id']}"] = "cached"
                 print(f"[library] {data['id']}: using cached {self.style}.png")
                 return cached.convert("RGBA")
 
         image, provider = self.chain.generate(prompt, *CHARACTER_SIZE, seed=data.get("seed", 1),
                                               label=f"character {data['id']}",
                                               negative=CONFIG["safety"]["negative"])
+        self.status[f"character {data['id']}"] = provider
         if image is None:
             return None
         cut = remove_background(image)
@@ -240,6 +248,7 @@ class Library:
             return None
         custom = os.path.join(BACKGROUND_DIR, f"{scene}.png")
         if os.path.exists(custom):
+            self.status[f"scene {scene}"] = "your own picture"
             print(f"[library] scene {scene}: using your {scene}.png")
             return Image.open(custom).convert("RGB")
         if scene not in self.scenes:
@@ -247,20 +256,24 @@ class Library:
             return None
 
         mood = CONFIG["genres"][self.genre].get("mood", "")
-        prompt = background_prompt(self.scenes[scene], self.style, mood)
-        png = os.path.join(BACKGROUND_DIR, f"{scene}__{self.style}.png")
-        meta = os.path.join(BACKGROUND_DIR, f"{scene}__{self.style}.json")
+        prompt = background_prompt(self.scenes[scene], self.style, mood, self.fmt)
+        name = f"{scene}__{self.style}{CACHE_SUFFIX[self.fmt]}"
+        png = os.path.join(BACKGROUND_DIR, f"{name}.png")
+        meta = os.path.join(BACKGROUND_DIR, f"{name}.json")
         if not self.refresh:
             cached = _load_cached(png, meta, prompt)
             if cached is not None:
+                self.status[f"scene {scene}"] = "cached"
                 print(f"[library] scene {scene}: using cached background")
                 return cached.convert("RGB")
 
-        image, provider = self.chain.generate(prompt, *BACKGROUND_SIZE, seed=zlib.crc32(scene.encode()) % 100000,
+        size = BACKGROUND_SIZE[self.fmt]
+        image, provider = self.chain.generate(prompt, *size, seed=zlib.crc32(scene.encode()) % 100000,
                                               label=f"scene {scene}", negative=CONFIG["safety"]["negative"])
+        self.status[f"scene {scene}"] = provider
         if image is None:
             return None
-        image = ImageOps.fit(image, BACKGROUND_SIZE)
+        image = ImageOps.fit(image, size)
         image.save(png)
         _save_meta(meta, prompt, provider, self.style)
         return image

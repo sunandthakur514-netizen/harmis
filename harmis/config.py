@@ -15,15 +15,22 @@ CONFIG_FILE = os.environ.get("HARMIS_CONFIG", os.path.join(PROJECT_DIR, "config.
 # Minimal defaults; config.yaml has the full, commented version.
 DEFAULTS = {
     "defaults": {"lang": "hindi", "style": "3d_cartoon", "output_dir": "output"},
-    "video": {"fps": 30, "min_seconds": 30, "max_seconds": 60, "crossfade_seconds": 0.6},
+    "video": {"crossfade_seconds": 0.6, "chunk_seconds": 60},
+    "formats": {
+        "short": {"width": 1080, "height": 1920, "fps": 30, "min_seconds": 30, "max_seconds": 60},
+        "long": {"width": 1920, "height": 1080, "fps": 24, "min_seconds": 300, "max_seconds": 420,
+                 "intro_seconds": 4, "outro_seconds": 7},
+    },
     "image_providers": {
         "order": ["pollinations", "gemini", "huggingface"],
-        "disable_after_failures": 2,
+        "disable_after_failures": 3,
         "pollinations": {"url": "https://image.pollinations.ai/prompt/{prompt}", "model": "flux",
-                         "timeout": 120, "retries": 2},
-        "gemini": {"model": "gemini-2.5-flash-image", "timeout": 120, "retries": 1},
+                         "timeout": 120, "tries": 4, "delay_seconds": 15, "backoff_seconds": 20},
+        "gemini": {"model": "gemini-2.5-flash-image", "timeout": 120, "tries": 3,
+                   "delay_seconds": 5, "backoff_seconds": 20},
         "huggingface": {"url": "https://router.huggingface.co/hf-inference/models/{model}",
-                        "model": "black-forest-labs/FLUX.1-schnell", "timeout": 120, "retries": 2},
+                        "model": "black-forest-labs/FLUX.1-schnell", "timeout": 120, "tries": 3,
+                        "delay_seconds": 5, "backoff_seconds": 20},
     },
     "background_removal": {"rembg_model": "u2net"},
     "styles": {

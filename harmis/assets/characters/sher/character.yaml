@@ -1,0 +1,12 @@
+# Bhasuraka the proud lion from the Panchatantra
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Sher              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: शेर
+  english: Lion
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+seed: 1120              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a big proud cartoon lion with a fluffy golden-brown mane, a puffed-up chest and a
+  grumpy but funny expression, standing upright on two legs, no sharp teeth showing
