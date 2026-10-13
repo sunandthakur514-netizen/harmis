@@ -1,9 +1,12 @@
 """Step 2: turn each script line into speech, one audio file per line.
 
-We use edge-tts (free Microsoft Edge voices, needs internet). Each speaker gets a
-different voice. If edge-tts cannot connect we fall back to espeak-ng (offline,
-robotic but works), and if that is not installed either we write a silent clip
-so the video can still be made.
+We use edge-tts (free Microsoft Edge voices, needs internet) with Indian voices:
+hi-IN for Hindi, en-IN for Hinglish and English. Each speaker gets their own
+voice, picked from their gender and age (children sound higher, Dadi slower).
+
+If edge-tts cannot connect we fall back to espeak-ng (offline, robotic but works),
+and if that is not installed either we write a silent clip so the video can
+still be made.
 """
 
 import asyncio
@@ -17,54 +20,80 @@ from moviepy import AudioFileClip
 
 from .script import NARRATOR
 
-# edge-tts voices: [narrator, character 1, character 2] for each genre.
+# edge-tts voices per language and gender.
+# (Hinglish is written in Roman letters, which the en-IN voices read more naturally.)
 EDGE_VOICES = {
-    "comedy": ["en-US-ChristopherNeural", "en-US-GuyNeural", "en-US-JennyNeural"],
-    "horror": ["en-GB-RyanNeural", "en-US-AnaNeural", "en-US-EricNeural"],
-    "kids": ["en-US-JennyNeural", "en-US-AnaNeural", "en-GB-RyanNeural"],
+    "hindi": {"m": "hi-IN-MadhurNeural", "f": "hi-IN-SwaraNeural"},
+    "hinglish": {"m": "en-IN-PrabhatNeural", "f": "en-IN-NeerjaNeural"},
+    "english": {"m": "en-IN-PrabhatNeural", "f": "en-IN-NeerjaNeural"},
 }
 
-# Extra tweaks per genre (slower and deeper for horror, a bit faster for comedy).
-EDGE_STYLE = {
-    "comedy": {"rate": "+5%", "pitch": "+0Hz"},
-    "horror": {"rate": "-10%", "pitch": "-5Hz"},
-    "kids": {"rate": "+0%", "pitch": "+5Hz"},
+# Speed (%) and pitch (Hz) changes by age, so a child and an adult sound different
+# even with the same voice.
+AGE_STYLE = {"child": (5, 25), "adult": (0, 0), "old": (-10, -8)}
+
+# The narrator's voice for each genre: (gender, speed %, pitch Hz).
+NARRATOR_STYLE = {
+    "kids_story": ("f", -5, 0),
+    "kids_rhyme": ("f", -5, 8),
+    "comedy": ("m", 5, 0),
+    "horror": ("m", -15, -10),
 }
 
-# espeak-ng fallback voices: (voice, pitch 0-99) for narrator, char 1, char 2.
-ESPEAK_VOICES = [("en-us+m3", 40), ("en-gb+m1", 60), ("en-us+f3", 70)]
+# espeak-ng fallback: voice name per language.
+ESPEAK_LANG = {"hindi": "hi", "hinglish": "en", "english": "en"}
 
 
-def speaker_index(script, speaker):
-    """0 for the narrator, 1 or 2 for the characters."""
-    if speaker == NARRATOR:
-        return 0
-    return 1 + script["characters"].index(speaker)
+def pick_voices(script):
+    """Decide the voice for every speaker.
+
+    Returns {speaker name: {"gender", "voice", "rate", "pitch", "age"}}.
+    """
+    lang, genre = script["lang"], script["genre"]
+    gender, rate, pitch = NARRATOR_STYLE[genre]
+    voices = {NARRATOR: {"gender": gender, "voice": EDGE_VOICES[lang][gender],
+                         "rate": rate, "pitch": pitch, "age": "adult"}}
+    used = {(voices[NARRATOR]["voice"], pitch)}
+
+    for character in script["characters"]:
+        rate, pitch = AGE_STYLE[character["age"]]
+        if genre == "horror":
+            rate -= 5  # everyone talks a little slower in horror
+        voice = EDGE_VOICES[lang][character["gender"]]
+        # Same voice and pitch as someone else? Nudge the pitch until it is different.
+        while (voice, pitch) in used:
+            pitch += 12
+        used.add((voice, pitch))
+        voices[character["name"]] = {"gender": character["gender"], "voice": voice,
+                                     "rate": rate, "pitch": pitch, "age": character["age"]}
+    return voices
 
 
-async def _edge_tts(text, voice, rate, pitch, path):
+async def _edge_tts(text, style, path):
     # aiohttp does not read HTTPS_PROXY by itself, so pass it on if set.
     proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
-    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch, proxy=proxy)
+    communicate = edge_tts.Communicate(text, style["voice"], rate=f"{style['rate']:+d}%",
+                                       pitch=f"{style['pitch']:+d}Hz", proxy=proxy)
     await communicate.save(path)
 
 
-def speak_edge(text, index, genre, path):
+def speak_edge(text, style, path):
     """Make an mp3 with edge-tts. Raises an exception if it fails."""
-    style = EDGE_STYLE[genre]
-    asyncio.run(_edge_tts(text, EDGE_VOICES[genre][index], style["rate"], style["pitch"], path))
+    asyncio.run(_edge_tts(text, style, path))
     if not os.path.exists(path) or os.path.getsize(path) == 0:
         raise RuntimeError("edge-tts produced an empty file")
 
 
-def speak_espeak(text, index, path):
+def speak_espeak(text, style, lang, path):
     """Make a wav with espeak-ng (offline). Raises an exception if it fails."""
     program = shutil.which("espeak-ng") or shutil.which("espeak")
     if not program:
         raise RuntimeError("espeak-ng is not installed")
-    voice, pitch = ESPEAK_VOICES[index]
-    subprocess.run([program, "-v", voice, "-p", str(pitch), "-s", "155", "-w", path, text],
-                   check=True, capture_output=True)
+    voice = ESPEAK_LANG[lang] + ("+f3" if style["gender"] == "f" else "+m3")
+    pitch = {"child": 80, "adult": 50, "old": 35}[style["age"]] + style["pitch"] // 4
+    speed = int(150 * (1 + style["rate"] / 100))
+    subprocess.run([program, "-v", voice, "-p", str(max(0, min(99, pitch))), "-s", str(speed),
+                    "-w", path, text], check=True, capture_output=True)
 
 
 def write_silence(text, path, rate=22050):
@@ -83,19 +112,19 @@ def make_voices(script, out_dir):
     Returns a list of dicts: {"speaker", "text", "audio", "duration"}.
     """
     os.makedirs(out_dir, exist_ok=True)
-    genre = script["genre"]
+    voices = pick_voices(script)
     use_edge = True  # stop trying edge-tts after the first failure (saves time)
     results = []
 
     for number, line in enumerate(script["lines"]):
-        index = speaker_index(script, line["speaker"])
+        style = voices[line["speaker"]]
         base = os.path.join(out_dir, f"line_{number:02d}")
         path = None
 
         if use_edge:
             try:
                 path = base + ".mp3"
-                speak_edge(line["text"], index, genre, path)
+                speak_edge(line["text"], style, path)
             except Exception as error:
                 print(f"[voice] edge-tts failed ({type(error).__name__}: {error}); "
                       "falling back to offline voices.")
@@ -105,7 +134,7 @@ def make_voices(script, out_dir):
         if path is None:
             try:
                 path = base + ".wav"
-                speak_espeak(line["text"], index, path)
+                speak_espeak(line["text"], style, script["lang"], path)
             except Exception as error:
                 print(f"[voice] espeak-ng failed ({error}); using a silent clip.")
                 write_silence(line["text"], path)
