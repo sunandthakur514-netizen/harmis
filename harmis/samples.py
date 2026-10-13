@@ -7,10 +7,13 @@ and Indian English. Kids stories are retellings of public-domain folk tales
 Format of one sample:
     "title":      {"hindi": ..., "hinglish": ..., "english": ...}
     "source":     where the story comes from (just for information)
-    "characters": up to 2, each {"name", "hindi" (name in Devanagari),
-                  "gender" ("m"/"f"), "age" ("child"/"adult"/"old")}
+    "id":         short name for --story (for example birbal_khichdi)
+    "characters": up to 2 character ids from harmis/assets/characters/
+                  (their look, voice and on-screen name come from character.yaml)
+    "scenes":     {line number: scene} - the background changes at that line.
+                  Scenes are listed in harmis/assets/backgrounds/scenes.yaml
     "lines":      (speaker, hindi, hinglish, english)
-                  speaker is "Narrator" or a character's "name".
+                  speaker is "Narrator" or the "name" from a character.yaml.
 """
 
 N = "Narrator"
@@ -21,13 +24,12 @@ SAMPLES = {
     # ------------------------------------------------------------------
     "kids_story": [
         {
+            "id": "monkey_crocodile",
             "title": {"hindi": "बंदर और मगरमच्छ", "hinglish": "Bandar aur Magarmachh",
                       "english": "The Monkey and the Crocodile"},
             "source": "Panchatantra",
-            "characters": [
-                {"name": "Bandar", "hindi": "बंदर", "gender": "m", "age": "child"},
-                {"name": "Magar", "hindi": "मगरमच्छ", "gender": "m", "age": "adult"},
-            ],
+            "characters": ["bandar", "magar"],
+            "scenes": {0: "riverbank_jamun", 2: "river_water", 5: "riverbank_jamun"},
             "lines": [
                 (N, "नदी किनारे जामुन के पेड़ पर एक बंदर रहता था। वह रोज़ अपने दोस्त मगरमच्छ को मीठे जामुन खिलाता था।",
                  "Nadi kinare jamun ke ped par ek bandar rehta tha. Woh roz apne dost magarmachh ko meethe jamun khilata tha.",
@@ -56,13 +58,12 @@ SAMPLES = {
             ],
         },
         {
+            "id": "birbal_khichdi",
             "title": {"hindi": "बीरबल की खिचड़ी", "hinglish": "Birbal ki Khichdi",
                       "english": "Birbal's Khichdi"},
             "source": "Akbar-Birbal",
-            "characters": [
-                {"name": "Akbar", "hindi": "अकबर", "gender": "m", "age": "adult"},
-                {"name": "Birbal", "hindi": "बीरबल", "gender": "m", "age": "adult"},
-            ],
+            "characters": ["akbar", "birbal"],
+            "scenes": {0: "village_pond_night", 1: "palace_court", 3: "birbal_courtyard"},
             "lines": [
                 (N, "सर्दी की एक रात, एक गरीब आदमी ठंडे तालाब में पूरी रात खड़ा रहा।",
                  "Sardi ki ek raat, ek gareeb aadmi thande talaab mein poori raat khada raha.",
@@ -88,13 +89,12 @@ SAMPLES = {
             ],
         },
         {
+            "id": "tenali_thieves",
             "title": {"hindi": "तेनाली और चोर", "hinglish": "Tenali aur Chor",
                       "english": "Tenali and the Thieves"},
             "source": "Tenali Raman",
-            "characters": [
-                {"name": "Tenali", "hindi": "तेनाली", "gender": "m", "age": "adult"},
-                {"name": "Kamala", "hindi": "कमला", "gender": "f", "age": "adult"},
-            ],
+            "characters": ["tenali", "kamala"],
+            "scenes": {0: "tenali_garden_night", 4: "tenali_garden_morning"},
             "lines": [
                 (N, "एक रात तेनाली रामन ने देखा कि बगीचे में चोर छिपे हैं।",
                  "Ek raat Tenali Raman ne dekha ki bageeche mein chor chhipe hain.",
@@ -123,13 +123,12 @@ SAMPLES = {
             ],
         },
         {
+            "id": "talkative_tortoise",
             "title": {"hindi": "बातूनी कछुआ", "hinglish": "Baatooni Kachhua",
                       "english": "The Talkative Tortoise"},
             "source": "Jataka",
-            "characters": [
-                {"name": "Kachhua", "hindi": "कछुआ", "gender": "m", "age": "child"},
-                {"name": "Hans", "hindi": "हंस", "gender": "f", "age": "adult"},
-            ],
+            "characters": ["kachhua", "hans"],
+            "scenes": {0: "village_pond", 3: "sky_over_village", 5: "grassy_meadow"},
             "lines": [
                 (N, "एक तालाब में एक बातूनी कछुआ रहता था। उसके दोस्त थे दो हंस।",
                  "Ek talaab mein ek baatooni kachhua rehta tha. Uske dost the do hans.",
@@ -163,13 +162,12 @@ SAMPLES = {
     # ------------------------------------------------------------------
     "kids_rhyme": [
         {
+            "id": "chham_chham_baarish",
             "title": {"hindi": "छम छम बारिश", "hinglish": "Chham Chham Baarish",
                       "english": "Splash Splash Rain"},
             "source": "Original rhyme",
-            "characters": [
-                {"name": "Chintu", "hindi": "चिंटू", "gender": "m", "age": "child"},
-                {"name": "Pinky", "hindi": "पिंकी", "gender": "f", "age": "child"},
-            ],
+            "characters": ["chintu", "pinky"],
+            "scenes": {0: "monsoon_village"},
             "lines": [
                 (N, "छम छम छम, बारिश आई,", "Chham chham chham, baarish aayi,",
                  "Splash splash splash, the rain is here,"),
@@ -190,13 +188,12 @@ SAMPLES = {
             ],
         },
         {
+            "id": "diwali_mela",
             "title": {"hindi": "दिवाली का मेला", "hinglish": "Diwali ka Mela",
                       "english": "The Diwali Mela"},
             "source": "Original rhyme",
-            "characters": [
-                {"name": "Chintu", "hindi": "चिंटू", "gender": "m", "age": "child"},
-                {"name": "Pinky", "hindi": "पिंकी", "gender": "f", "age": "child"},
-            ],
+            "characters": ["chintu", "pinky"],
+            "scenes": {0: "diwali_mela"},
             "lines": [
                 (N, "ढम ढम ढोल, मेला आया,", "Dham dham dhol, mela aaya,",
                  "Boom boom drum, the mela is here,"),
@@ -222,12 +219,11 @@ SAMPLES = {
     # ------------------------------------------------------------------
     "comedy": [
         {
+            "id": "gali_cricket",
             "title": {"hindi": "गली क्रिकेट", "hinglish": "Gali Cricket", "english": "Gali Cricket"},
             "source": "Original",
-            "characters": [
-                {"name": "Chintu", "hindi": "चिंटू", "gender": "m", "age": "child"},
-                {"name": "Sharma", "hindi": "शर्मा अंकल", "gender": "m", "age": "old"},
-            ],
+            "characters": ["chintu", "sharma_uncle"],
+            "scenes": {0: "gali"},
             "lines": [
                 (N, "रविवार की सुबह, गली में क्रिकेट का बड़ा मैच चल रहा था।",
                  "Ravivaar ki subah, gali mein cricket ka bada match chal raha tha.",
@@ -256,13 +252,12 @@ SAMPLES = {
             ],
         },
         {
+            "id": "dadi_smartphone",
             "title": {"hindi": "दादी का स्मार्टफ़ोन", "hinglish": "Dadi ka Smartphone",
                       "english": "Dadi's Smartphone"},
             "source": "Original",
-            "characters": [
-                {"name": "Pinky", "hindi": "पिंकी", "gender": "f", "age": "child"},
-                {"name": "Dadi", "hindi": "दादी", "gender": "f", "age": "old"},
-            ],
+            "characters": ["pinky", "dadi"],
+            "scenes": {0: "living_room"},
             "lines": [
                 (N, "दादी ने नया स्मार्टफ़ोन लिया, और पिंकी बनी उनकी टीचर।",
                  "Dadi ne naya smartphone liya, aur Pinky bani unki teacher.",
@@ -296,13 +291,12 @@ SAMPLES = {
     # ------------------------------------------------------------------
     "horror": [
         {
+            "id": "haveli_paayal",
             "title": {"hindi": "हवेली की पायल", "hinglish": "Haveli ki Paayal",
                       "english": "The Anklet in the Haveli"},
             "source": "Original",
-            "characters": [
-                {"name": "Meera", "hindi": "मीरा", "gender": "f", "age": "adult"},
-                {"name": "Rohan", "hindi": "रोहन", "gender": "m", "age": "adult"},
-            ],
+            "characters": ["meera", "rohan"],
+            "scenes": {0: "haveli_night", 3: "haveli_stairs_night"},
             "lines": [
                 (N, "बारिश की रात, गाँव की पुरानी हवेली में बिजली चली गई।",
                  "Baarish ki raat, gaon ki puraani haveli mein bijli chali gayi.",
@@ -331,12 +325,11 @@ SAMPLES = {
             ],
         },
         {
+            "id": "aakhri_bus",
             "title": {"hindi": "आख़िरी बस", "hinglish": "Aakhri Bus", "english": "The Last Bus"},
             "source": "Original",
-            "characters": [
-                {"name": "Vikram", "hindi": "विक्रम", "gender": "m", "age": "adult"},
-                {"name": "Conductor", "hindi": "कंडक्टर", "gender": "m", "age": "old"},
-            ],
+            "characters": ["vikram", "conductor"],
+            "scenes": {0: "city_bus_night", 7: "old_bridge_morning"},
             "lines": [
                 (N, "रात के बारह बजे, विक्रम शहर की आख़िरी बस में चढ़ा।",
                  "Raat ke baarah baje, Vikram sheher ki aakhri bus mein chadha.",

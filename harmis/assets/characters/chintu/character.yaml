@@ -1,0 +1,12 @@
+# Chintu, a cheerful 9 year old boy
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Chintu              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: चिंटू
+  english: Chintu
+gender: m               # m / f (picks the voice)
+age: child            # child / adult / old
+seed: 1109              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a cheerful 9 year old Indian boy with messy black hair and a big grin, wearing a blue
+  t-shirt, khaki shorts and white sneakers

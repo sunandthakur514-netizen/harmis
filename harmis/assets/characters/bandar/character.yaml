@@ -1,0 +1,12 @@
+# The monkey from the Panchatantra
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Bandar              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: बंदर
+  english: Monkey
+gender: m               # m / f (picks the voice)
+age: child            # child / adult / old
+seed: 1105              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a small playful brown monkey with a cream coloured face, big friendly eyes and a long
+  curly tail, standing upright

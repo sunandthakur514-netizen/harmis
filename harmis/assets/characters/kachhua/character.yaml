@@ -1,0 +1,12 @@
+# The talkative tortoise from the Jataka tales
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Kachhua              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: कछुआ
+  english: Tortoise
+gender: m               # m / f (picks the voice)
+age: child            # child / adult / old
+seed: 1107              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a cute small green tortoise with a round brown patterned shell, big curious eyes and a
+  chatty open smile, standing on its hind legs

@@ -1,0 +1,13 @@
+# Emperor Akbar from the Akbar-Birbal folk tales
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Akbar              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: अकबर
+  english: Akbar
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+seed: 1101              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a Mughal emperor in his 40s with a dignified, kind face, neatly trimmed black beard
+  and moustache, wearing a rich maroon and gold jama robe, a pearl necklace and a
+  jewelled white turban

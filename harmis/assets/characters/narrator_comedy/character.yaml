@@ -1,0 +1,12 @@
+# Storyteller shown while narrating comedy
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Narrator              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: कथावाचक
+  english: Narrator
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+seed: 1118              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a cheerful Indian man in his 30s with a curly moustache and a big laugh, wearing a
+  bright yellow kurta and a red bow tie, holding a microphone

@@ -2,3 +2,10 @@ output/
 __pycache__/
 *.pyc
 .venv/
+
+# Generated pictures are cached locally (your own custom.png / <scene>.png files are kept)
+harmis/assets/characters/*/storybook.*
+harmis/assets/characters/*/3d_cartoon.*
+harmis/assets/characters/*/anime.*
+harmis/assets/backgrounds/*__*.png
+harmis/assets/backgrounds/*__*.json

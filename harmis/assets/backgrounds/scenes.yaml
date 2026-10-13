@@ -1,0 +1,30 @@
+# Every scene (background) that stories can use: scene name -> what it looks like.
+# Pictures are generated once per style and cached here as <scene>__<style>.png.
+# To use your own picture for a scene, save it here as <scene>.png.
+# Descriptions must not contain people: characters are added on top.
+
+# ----- everyday India -----
+village_day: a sunny Indian village with mud houses, a big banyan tree, a well and green fields
+gali: a narrow Indian residential lane (gali) with colourful houses, balconies with potted plants, a glass window, morning sunlight
+living_room: a cosy Indian middle-class living room with a sofa, a ceiling fan, framed family photos and potted plants, daylight
+school: a bright Indian school classroom with wooden desks, a blackboard and colourful charts on the walls
+monsoon_village: an Indian village street in monsoon rain, puddles, wet green trees, dark rain clouds, a paper boat in a puddle
+diwali_mela: a colourful Indian Diwali fair at dusk with a giant wheel, a balloon stall, sweet stalls with jalebi, glowing diyas and string lights
+
+# ----- folk tales -----
+palace_court: a grand Mughal palace court hall with white marble arches, red carpets, a golden throne and warm light
+village_pond_night: a quiet Indian village pond on a cold winter night, mist over the water, moonlight, a tiny lamp glowing in a far-away palace window
+birbal_courtyard: a simple courtyard of an old Indian house, a clay pot hanging very high on a tall wooden pole above a tiny cooking fire, daylight
+riverbank_jamun: a riverbank in India with a big jamun tree full of purple fruits, a calm blue river, sunny day
+river_water: the middle of a wide calm Indian river with gentle waves, distant green banks and a blue sky
+tenali_garden_night: a South Indian village house garden at night with coconut trees, a stone well and moonlight
+tenali_garden_morning: a South Indian village house garden in the morning with wet green plants and flowers, coconut trees, a stone well and sunshine
+village_pond: a small pond with pink lotus flowers, reeds and trees in the Indian countryside, sunny day
+sky_over_village: high in a blue sky with fluffy white clouds, a tiny Indian village and green fields far below
+grassy_meadow: a soft green grassy meadow with wildflowers near an Indian village, sunny day
+
+# ----- mild horror (teens and adults) -----
+haveli_night: inside an old Indian haveli on a rainy night, carved wooden doors, flickering oil lamps, long shadows, mysterious but not gory
+haveli_stairs_night: an old carved wooden staircase inside an Indian haveli at night, lit by a single torch beam, mysterious
+city_bus_night: inside an empty old Indian city bus at night, dim yellow lights, rain on the windows
+old_bridge_morning: an old stone bridge over a river in India on a misty early morning

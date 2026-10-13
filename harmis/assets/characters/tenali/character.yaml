@@ -1,0 +1,13 @@
+# Tenali Raman, the witty poet from South Indian folk tales
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Tenali              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: तेनाली
+  english: Tenali
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+seed: 1103              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a witty South Indian man in his 30s with a big playful smile and a thin moustache,
+  black hair tied back, wearing a white dhoti and a cream angavastram shawl, a
+  sandalwood mark on his forehead

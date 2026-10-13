@@ -1,0 +1,12 @@
+# Kamala, Tenali Raman's wife
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Kamala              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: कमला
+  english: Kamala
+gender: f               # m / f (picks the voice)
+age: adult            # child / adult / old
+seed: 1104              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a cheerful South Indian woman in her 30s wearing a green silk saree with a golden
+  border, jasmine flowers in her long braided hair, a small red bindi

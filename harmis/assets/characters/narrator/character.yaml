@@ -1,0 +1,12 @@
+# Storyteller shown while narrating kids stories and rhymes
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Narrator              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: कथावाचक
+  english: Narrator
+gender: f               # m / f (picks the voice)
+age: adult            # child / adult / old
+seed: 1117              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a kind Indian storyteller woman in her 40s with a warm smile, wearing a bright orange
+  and pink saree, holding an open storybook

@@ -1,0 +1,12 @@
+# The crocodile from the Panchatantra
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Magar              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: मगरमच्छ
+  english: Crocodile
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+seed: 1106              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a big friendly green cartoon crocodile with a long snout, a goofy grin with rounded
+  teeth, cheerful eyes, standing upright on two legs

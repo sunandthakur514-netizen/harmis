@@ -1,0 +1,107 @@
+# HARMIS settings. Change these without touching the code.
+# Command line options (--lang, --style, --providers) win over this file.
+
+defaults:
+  lang: hindi            # hindi | hinglish | english
+  style: 3d_cartoon      # storybook | 3d_cartoon | anime
+  output_dir: output
+
+video:
+  fps: 30
+  min_seconds: 30        # shorter videos get a longer ending card
+  max_seconds: 60        # longer stories are swapped for a built-in one
+  crossfade_seconds: 0.6 # fade between scenes
+
+# ---------------------------------------------------------------------------
+# Image providers, tried in this order for every picture.
+# A video is ALWAYS made: if every provider fails, HARMIS draws simple
+# shape characters and coloured backgrounds instead.
+# ---------------------------------------------------------------------------
+image_providers:
+  order: [pollinations, gemini, huggingface]
+  disable_after_failures: 2   # stop asking a provider that keeps failing in this run
+
+  pollinations:               # free, no key needed
+    url: https://image.pollinations.ai/prompt/{prompt}
+    model: flux
+    timeout: 120
+    retries: 2
+
+  gemini:                     # needs the GEMINI_API_KEY environment variable
+    model: gemini-2.5-flash-image
+    timeout: 120
+    retries: 1
+
+  huggingface:                # needs the HF_TOKEN environment variable (free account)
+    url: https://router.huggingface.co/hf-inference/models/{model}
+    model: black-forest-labs/FLUX.1-schnell
+    timeout: 120
+    retries: 2
+
+# Character pictures get their background removed so they can stand on any scene.
+background_removal:
+  rembg_model: u2net          # if rembg is not installed, a simple white-background cut is used
+
+# ---------------------------------------------------------------------------
+# Art styles. The chosen style is added to every image prompt.
+# ---------------------------------------------------------------------------
+styles:
+  storybook: >-
+    children's storybook illustration, soft watercolour and gouache painting,
+    warm colours, gentle outlines, hand-painted texture
+  3d_cartoon: >-
+    3D animated movie style render, cute stylised proportions, big expressive eyes,
+    soft studio lighting, smooth shading, vibrant colours, high quality CGI
+  anime: >-
+    anime style illustration, clean line art, cel shading, bright colours,
+    expressive eyes
+
+# ---------------------------------------------------------------------------
+# Kid safety. These words are added to EVERY image prompt, and the blocked words
+# are removed from every prompt (no copyrighted characters or brands).
+# ---------------------------------------------------------------------------
+safety:
+  always_add: >-
+    kid-friendly, wholesome, family-safe, non-violent, modest clothing, no gore,
+    no blood, no weapons, original character design, no text, no logo, no watermark
+  negative: >-
+    nsfw, nudity, gore, blood, violence, weapon, horror face, text, letters,
+    watermark, logo, signature, copyrighted character
+  blocked_words: [disney, pixar, dreamworks, ghibli, marvel, mickey, minnie, elsa,
+                  frozen, shrek, pokemon, pikachu, naruto, doraemon, shinchan,
+                  chhota bheem, motu patlu, peppa, spongebob, barbie, superman,
+                  batman, spiderman, spider-man, harry potter, minion]
+
+# ---------------------------------------------------------------------------
+# Genre settings
+#   style:          art style for this genre (unless --style is given)
+#   narrator:       character from harmis/assets/characters/ shown while narrating
+#   narrator_voice: speed (%) and pitch (Hz) changes for the narrator's voice
+#   default_scene:  background used when a line has no scene
+#   mood:           added to background prompts
+# ---------------------------------------------------------------------------
+genres:
+  kids_story:
+    style: 3d_cartoon
+    narrator: narrator
+    narrator_voice: {rate: -5, pitch: 0}
+    default_scene: village_day
+    mood: bright cheerful daylight, warm happy colours
+  kids_rhyme:
+    style: 3d_cartoon
+    narrator: narrator
+    narrator_voice: {rate: -5, pitch: 8}
+    default_scene: village_day
+    mood: bright cheerful colours, playful
+  comedy:
+    style: 3d_cartoon
+    narrator: narrator_comedy
+    narrator_voice: {rate: 5, pitch: 0}
+    default_scene: gali
+    mood: bright sunny colours, fun
+  horror:
+    style: storybook
+    narrator: narrator_horror
+    narrator_voice: {rate: -15, pitch: -10}
+    default_scene: haveli_night
+    mood: dark moonlit night, mysterious and mildly spooky, suitable for teenagers, no gore

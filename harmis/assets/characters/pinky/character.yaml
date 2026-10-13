@@ -1,0 +1,12 @@
+# Pinky, a lively 8 year old girl
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Pinky              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: पिंकी
+  english: Pinky
+gender: f               # m / f (picks the voice)
+age: child            # child / adult / old
+seed: 1110              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a lively 8 year old Indian girl with two braided pigtails tied with red ribbons, a
+  small red bindi, wearing a pink kurta with white leggings and sandals

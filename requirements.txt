@@ -1,5 +1,7 @@
 moviepy>=2.1,<3
-Pillow>=10.1
+Pillow>=10.1,<12      # MoviePy 2 does not support Pillow 12 yet
 numpy
 edge-tts>=6.1
 requests
+PyYAML>=6
+rembg[cpu]            # removes picture backgrounds (pip picks a version that works with Pillow 11)

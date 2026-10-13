@@ -1,0 +1,12 @@
+# Rohan, a young man (horror stories)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Rohan              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: रोहन
+  english: Rohan
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+seed: 1114              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a young Indian man in his 20s with short black hair, wearing a grey hoodie, jeans and
+  sneakers

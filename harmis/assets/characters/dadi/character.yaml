@@ -1,0 +1,12 @@
+# Dadi, a sweet grandmother
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Dadi              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: दादी
+  english: Dadi
+gender: f               # m / f (picks the voice)
+age: old            # child / adult / old
+seed: 1111              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a sweet Indian grandmother in her 70s with grey hair in a neat bun, round glasses and
+  a warm smile, a small red bindi, wearing a cream cotton saree with a maroon border

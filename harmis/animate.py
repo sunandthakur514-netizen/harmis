@@ -1,16 +1,17 @@
-"""Step 3: draw a simple 2D animation and put it together with the voices.
+"""Step 3: animate the story and put it together with the voices.
 
-Everything is drawn with Pillow, one frame at a time, and MoviePy turns the
-frames + audio into an mp4.
+Layers, from back to front:
+  1. the scene background (an AI picture from the library, or a bright
+     Indian-style drawn background) with slow Ken Burns camera movement and
+     crossfades when the scene changes
+  2. the characters: transparent PNGs from the character library. The speaker
+     bounces, grows a little and glows; the others breathe gently and blink
+     (if a blink.png is provided). Characters without a picture are drawn as
+     simple shapes whose mouth moves with the voice.
+  3. a small narrator picture while the narrator speaks
+  4. the title, big subtitles with the speaker's name, and a 13+ badge for horror
 
-What you see:
-  * a bright Indian-style background for the genre (marigold toran, kites,
-    bunting flags) or a dark night for horror
-  * up to 2 simple cartoon characters (shapes with eyes and a mouth); children
-    get rosy cheeks, girls and women a bindi, Dadi a grey bun and glasses
-  * the speaking character bounces and its mouth moves with the voice volume
-  * big subtitles (Hindi in Devanagari, using the bundled Noto Sans Devanagari font)
-  * a gentle slow zoom over the whole video
+Everything is drawn with Pillow, frame by frame, and MoviePy writes the mp4.
 """
 
 import math
@@ -20,21 +21,31 @@ import random
 import numpy as np
 from moviepy import AudioFileClip, CompositeAudioClip, VideoClip
 from moviepy.audio.AudioClip import AudioArrayClip
-from PIL import Image, ImageDraw, ImageFont, features
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps, features
 
+from .config import CONFIG
 from .script import NARRATOR
 
-# Video settings: vertical 1080x1920 at 30 frames per second.
+# Video settings: vertical 1080x1920.
 WIDTH, HEIGHT = 1080, 1920
-FPS = 30
+FPS = CONFIG["video"]["fps"]
 
 # Timing (seconds)
 INTRO = 1.0        # quiet time at the start (title only)
 GAP = 0.35         # pause between lines
 OUTRO = 2.0        # "The End" card
-MIN_LENGTH = 30.0  # videos shorter than this get a longer outro
+MIN_LENGTH = float(CONFIG["video"]["min_seconds"])  # shorter videos get a longer outro
+FADE = float(CONFIG["video"]["crossfade_seconds"])  # crossfade between scenes
 
-GROUND_Y = 1230    # where the ground starts
+GROUND_Y = 1230    # where the ground starts (drawn backgrounds and shape characters)
+
+# Character pictures
+CHAR_HEIGHT = 820  # height on screen
+CHAR_MAX_W = 520   # wide characters (like the crocodile) are shrunk to this width
+BASELINE = 1450    # where their feet stand
+
+# Backgrounds are made 10% bigger than the screen so the camera can move.
+BG_W, BG_H = int(WIDTH * 1.1), int(HEIGHT * 1.1)
 
 # Colours and style for each genre.
 THEMES = {
@@ -153,7 +164,8 @@ def draw_bunting(draw):
             draw.polygon([(x - 25, y), (x + 25, y), (x, y + 60)], fill=colours[(i + row) % len(colours)])
 
 
-def draw_background(theme, title):
+def draw_background(theme):
+    """The drawn fallback background: gradient sky, decorations and ground."""
     image = Image.new("RGB", (WIDTH, HEIGHT))
     draw = ImageDraw.Draw(image)
 
@@ -190,14 +202,6 @@ def draw_background(theme, title):
     # Ground under the characters.
     draw.rectangle([0, GROUND_Y, WIDTH, HEIGHT], fill=theme["ground"])
 
-    # Story title near the top (below the garland / flags).
-    font = load_font(80)
-    y = 175
-    for line in wrap_text(draw, title, font, WIDTH - 120):
-        w = draw.textlength(line, font=font)
-        draw.text(((WIDTH - w) / 2, y), line, font=font, fill=theme["title"],
-                  stroke_width=5, stroke_fill=theme["sky"][0] if decor != "kites" else (0, 90, 140))
-        y += 105
     return image
 
 
@@ -354,34 +358,129 @@ def build_timeline(voiced_lines):
     return segments, total
 
 
-def make_video(script, voiced_lines, out_path, work_dir=None):
+def scene_spans(segments, total):
+    """[(start, end, scene)] - a new span starts whenever the scene changes."""
+    spans = []
+    for seg in segments:
+        scene = seg.get("scene")
+        if not spans or spans[-1][2] != scene:
+            spans.append([0.0 if not spans else seg["start"], total, scene])
+            if len(spans) > 1:
+                spans[-2][1] = seg["start"]
+    return [tuple(span) for span in spans] or [(0.0, total, None)]
+
+
+def ken_burns(base, progress, index):
+    """Slow camera move over a background: zoom in or out and drift sideways.
+
+    progress goes from 0 to 1 over the scene; index alternates the direction.
+    """
+    p = progress * progress * (3 - 2 * progress)  # smooth start and stop
+    zoom = 1.0 + 0.10 * (p if index % 2 == 0 else 1 - p)
+    cw, ch = BG_W / zoom, BG_H / zoom
+    direction = 1 if index % 2 == 0 else -1
+    cx = BG_W / 2 + direction * (BG_W - cw) / 2 * (2 * p - 1) * 0.8
+    cy = BG_H / 2 - (BG_H - ch) / 2 * 0.3 * (2 * p - 1)
+    box = (cx - cw / 2, cy - ch / 2, cx + cw / 2, cy + ch / 2)
+    return base.resize((WIDTH, HEIGHT), Image.BILINEAR, box=box)
+
+
+def prepare_character(image):
+    """Resize a character PNG once and make a dimmed copy and a soft glow for it."""
+    scale = min(CHAR_HEIGHT / image.height, CHAR_MAX_W / image.width)
+    normal = image.resize((max(1, int(image.width * scale)), max(1, int(image.height * scale))), Image.LANCZOS)
+    rgb, alpha = normal.convert("RGB"), normal.getchannel("A")
+    dim = ImageEnhance.Brightness(rgb).enhance(0.8).convert("RGBA")
+    dim.putalpha(alpha)
+    pad = 40
+    glow_alpha = Image.new("L", (normal.width + 2 * pad, normal.height + 2 * pad), 0)
+    glow_alpha.paste(alpha, (pad, pad))
+    glow_alpha = glow_alpha.filter(ImageFilter.GaussianBlur(18)).point(lambda a: min(255, int(a * 1.6)))
+    glow = Image.new("RGBA", glow_alpha.size, (255, 235, 150, 0))
+    glow.putalpha(glow_alpha)
+    return {"normal": normal, "dim": dim, "glow": glow, "pad": pad, "scale": scale}
+
+
+def render_cameo(image, size=240):
+    """A round picture of the narrator's head and shoulders."""
+    square = image.crop((0, 0, image.width, min(image.width, image.height)))
+    square = ImageOps.fit(square.convert("RGBA"), (size, size))
+    cameo = Image.new("RGBA", (size + 16, size + 16), (0, 0, 0, 0))
+    ImageDraw.Draw(cameo).ellipse([0, 0, size + 15, size + 15], fill=(255, 255, 255, 235))
+    inner = Image.new("RGBA", (size, size), (255, 248, 230, 255))
+    inner.alpha_composite(square)
+    mask = Image.new("L", (size, size), 0)
+    ImageDraw.Draw(mask).ellipse([0, 0, size - 1, size - 1], fill=255)
+    cameo.paste(inner, (8, 8), mask)
+    return cameo
+
+
+def render_title(title, theme, on_pictures):
+    """Title at the top. Over AI pictures it gets a soft dark band so it stays readable."""
+    image = Image.new("RGBA", (WIDTH, 420), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(image)
+    font = load_font(80)
+    if on_pictures:
+        for y in range(300):  # dark band fading out downwards
+            draw.line([(0, y), (WIDTH, y)], fill=(0, 0, 0, int(150 * (1 - y / 300))))
+        y, fill, stroke = 70, (255, 255, 255), (0, 0, 0)
+    else:  # drawn background: below the garland / flags, in the theme colours
+        y, fill = 175, theme["title"]
+        stroke = theme["sky"][0] if theme["decor"] != "kites" else (0, 90, 140)
+    for line in wrap_text(draw, title, font, WIDTH - 120):
+        w = draw.textlength(line, font=font)
+        draw.text(((WIDTH - w) / 2, y), line, font=font, fill=fill, stroke_width=5, stroke_fill=stroke)
+        y += 105
+    return image, y
+
+
+def make_video(script, voiced_lines, out_path, visuals, work_dir=None):
     """Draw every frame, add the audio and save the mp4 to out_path.
 
+    visuals comes from Library.load_visuals(): background pictures per scene and
+    character pictures (any of them may be None, then shapes are drawn instead).
     work_dir is where MoviePy may put its temporary audio file.
     """
     genre, lang = script["genre"], script["lang"]
     theme = THEMES[genre]
     segments, total = build_timeline(voiced_lines)
     end_start = segments[-1]["end"] + GAP if segments else INTRO
+    spans = scene_spans(segments, total)
 
-    background = draw_background(theme, script["title"])
-    name_font = load_font(48)
+    # ----- backgrounds (one big image per scene, ready for the camera move) -----
+    drawn = draw_background(theme).resize((BG_W, BG_H), Image.BILINEAR)
+    bases = {}
+    for _, _, scene in spans:
+        picture = visuals["backgrounds"].get(scene)
+        bases[scene] = ImageOps.fit(picture, (BG_W, BG_H)) if picture is not None else drawn
+    on_pictures = any(p is not None for p in visuals["backgrounds"].values())
+
+    # ----- characters -----
     characters = script["characters"]
-    labels = {c["name"]: c["label"] for c in characters}
-    labels[NARRATOR] = script["narrator_label"]
+    positions = [WIDTH // 2] if len(characters) == 1 else [WIDTH // 4 + 20, 3 * WIDTH // 4 - 20]
+    sprites = []
+    for info in characters:
+        pictures = visuals["characters"].get(info["name"], {})
+        if pictures.get("image") is not None:
+            sprite = prepare_character(pictures["image"])
+            blink = pictures.get("blink")
+            sprite["blink"] = blink.resize(sprite["normal"].size, Image.LANCZOS) if blink is not None else None
+            sprites.append(sprite)
+        else:
+            sprites.append(None)  # drawn as a shape
+    narrator = visuals.get("narrator")
+    cameo = render_cameo(narrator) if narrator is not None else None
 
-    # Pre-render things that do not change from frame to frame.
+    # ----- text -----
+    name_font = load_font(48)
+    labels = {c["name"]: c["label"] for c in characters}
+    labels[NARRATOR] = script["narrator"]["label"]
     for seg in segments:
-        seg["subtitle"] = render_subtitle(labels[seg["speaker"]], seg["text"], theme["accent"])
+        seg["subtitle"] = render_subtitle(labels.get(seg["speaker"], seg["speaker"]), seg["text"], theme["accent"])
         seg["loudness"] = loudness_per_frame(seg["audio"])
     end_card = render_subtitle("", END_TEXT[lang] + ("...?" if genre == "horror" else "!"), theme["accent"])
     badge = render_badge(GROWN_UPS[lang]) if genre == "horror" else None
-
-    # Where each character stands.
-    if len(characters) == 1:
-        positions = [WIDTH // 2]
-    else:
-        positions = [WIDTH // 4 + 10, 3 * WIDTH // 4 - 10]
+    title, title_bottom = render_title(script["title"], theme, on_pictures)
 
     def current_segment(t):
         for seg in segments:
@@ -389,43 +488,75 @@ def make_video(script, voiced_lines, out_path, work_dir=None):
                 return seg
         return None
 
+    def background_at(t):
+        for index, (start, end, scene) in enumerate(spans):
+            if start <= t < end or index == len(spans) - 1:
+                frame = ken_burns(bases[scene], min(1.0, (t - start) / max(0.1, end - start)), index)
+                if index > 0 and t - start < FADE:  # crossfade from the previous scene
+                    prev_start, prev_end, prev_scene = spans[index - 1]
+                    previous = ken_burns(bases[prev_scene], 1.0, index - 1)
+                    frame = Image.blend(previous, frame, (t - start) / FADE)
+                return frame  # RGB, so semi-transparent drawing blends
+
+    def draw_sprite(frame, sprite, cx, speaking, someone_speaks, local, t, i):
+        """Paste one character picture with its idle / speaking movement."""
+        breathe = math.sin(t * 2.2 + i * 1.7)
+        sx, sy, lift = 1 - 0.004 * breathe, 1 + 0.012 * breathe, 0
+        image = sprite["dim"] if someone_speaks and not speaking else sprite["normal"]
+        if sprite["blink"] is not None and (t + i * 1.3) % 3.4 < 0.15:
+            image = sprite["blink"]
+        if speaking:
+            ease = min(1.0, local / 0.25)
+            sx = sy = 1 + 0.05 * ease
+            lift = int(16 * abs(math.sin(local * 6)) * ease)
+        w, h = int(image.width * sx), int(image.height * sy)
+        # Soft shadow on the ground.
+        ImageDraw.Draw(frame, "RGBA").ellipse([cx - w * 0.35, BASELINE - 18, cx + w * 0.35, BASELINE + 18], fill=(0, 0, 0, 70))
+        if speaking:  # warm glow behind the speaker
+            glow = sprite["glow"].resize((int(sprite["glow"].width * sx), int(sprite["glow"].height * sy)))
+            frame.paste(glow, (int(cx - glow.width / 2), int(BASELINE - h - lift - sprite["pad"] * sy)), glow)
+        image = image.resize((w, h), Image.BILINEAR)
+        frame.paste(image, (int(cx - w / 2), BASELINE - h - lift), image)
+
     def make_frame(t):
-        frame = background.copy()
+        frame = background_at(t)
         draw = ImageDraw.Draw(frame, "RGBA")
         seg = current_segment(t)
+        someone_speaks = seg is not None and seg["speaker"] != NARRATOR
 
         for i, info in enumerate(characters):
             speaking = seg is not None and seg["speaker"] == info["name"]
-            mouth = 0.0
-            bounce = 0
+            local = t - seg["start"] if speaking else 0.0
+            if sprites[i] is not None:
+                draw_sprite(frame, sprites[i], positions[i], speaking, someone_speaks, local, t, i)
+                continue
+            # No picture: simple shape character whose mouth follows the voice.
+            mouth, bounce = 0.0, 0
             if speaking:
-                local = t - seg["start"]
                 if seg["loudness"] is not None:
-                    index = min(int(local * FPS), len(seg["loudness"]) - 1)
-                    mouth = float(seg["loudness"][index])
-                else:  # no audio volume available: simple open/close
+                    mouth = float(seg["loudness"][min(int(local * FPS), len(seg["loudness"]) - 1)])
+                else:
                     mouth = 0.5 + 0.5 * math.sin(local * 18)
                 bounce = int(18 * abs(math.sin(local * 6)))
-            # Idle characters gently float; each blinks now and then.
             idle = int(8 * math.sin(t * 2 + i * 1.7))
             blink = (t + i * 1.3) % 3.2 < 0.12
-            shape = "round" if i == 0 else "box"
             draw_character(draw, positions[i], 980 + idle - bounce, 360, theme["characters"][i],
-                           shape, mouth, blink, info, name_font)
+                           "round" if i == 0 else "box", mouth, blink, info, name_font)
 
-        # Gentle zoom: crop a slightly smaller area from the centre and scale it up.
-        zoom = 1.0 + 0.08 * (t / total)
-        cw, ch = int(WIDTH / zoom), int(HEIGHT / zoom)
-        left, top = (WIDTH - cw) // 2, (HEIGHT - ch) // 2
-        frame = frame.crop((left, top, left + cw, top + ch)).resize((WIDTH, HEIGHT), Image.BILINEAR)
-
-        # Subtitles and badge go on top after the zoom so they stay sharp and in place.
+        frame.paste(title, (0, 0), title)
+        # Narrator picture fades in while the narrator talks.
+        if cameo is not None and seg is not None and seg["speaker"] == NARRATOR:
+            fade = min(1.0, (t - seg["start"]) / 0.3, (seg["end"] - t) / 0.3)
+            faded = cameo.copy()
+            faded.putalpha(cameo.getchannel("A").point(lambda a: int(a * fade)))
+            frame.paste(faded, (40, title_bottom + 10), faded)
+        # Subtitles and badge go on top.
         if seg is not None:
             frame.paste(seg["subtitle"], (0, HEIGHT - 620), seg["subtitle"])
         elif t >= end_start:
             frame.paste(end_card, (0, HEIGHT - 620), end_card)
         if badge is not None:
-            frame.paste(badge, (WIDTH - badge.width - 30, 40), badge)
+            frame.paste(badge, (WIDTH - badge.width - 30, 40 if not on_pictures else 330), badge)
         return np.array(frame)
 
     # Audio: each line placed at its start time (+ a soft beat under rhymes).

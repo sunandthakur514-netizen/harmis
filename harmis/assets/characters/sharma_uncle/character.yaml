@@ -1,0 +1,12 @@
+# Sharma Uncle, the grumpy-but-kind neighbour
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Sharma              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: शर्मा अंकल
+  english: Sharma Uncle
+gender: m               # m / f (picks the voice)
+age: old            # child / adult / old
+seed: 1112              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a plump Indian man in his 60s, bald on top with grey hair at the sides, a big white
+  moustache and round glasses, wearing a white kurta pyjama and a brown sleeveless vest

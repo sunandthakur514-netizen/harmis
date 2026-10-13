@@ -1,0 +1,13 @@
+# Birbal, the clever minister from the Akbar-Birbal folk tales
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Birbal              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: बीरबल
+  english: Birbal
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+seed: 1102              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a clever, cheerful Indian minister in his 40s with a warm smile and a short neat black
+  beard, wearing a white and gold angarkha tunic, cream churidar trousers and a saffron
+  turban

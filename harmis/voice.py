@@ -18,6 +18,7 @@ import wave
 import edge_tts
 from moviepy import AudioFileClip
 
+from .config import CONFIG
 from .script import NARRATOR
 
 # edge-tts voices per language and gender.
@@ -32,14 +33,6 @@ EDGE_VOICES = {
 # even with the same voice.
 AGE_STYLE = {"child": (5, 25), "adult": (0, 0), "old": (-10, -8)}
 
-# The narrator's voice for each genre: (gender, speed %, pitch Hz).
-NARRATOR_STYLE = {
-    "kids_story": ("f", -5, 0),
-    "kids_rhyme": ("f", -5, 8),
-    "comedy": ("m", 5, 0),
-    "horror": ("m", -15, -10),
-}
-
 # espeak-ng fallback: voice name per language.
 ESPEAK_LANG = {"hindi": "hi", "hinglish": "en", "english": "en"}
 
@@ -50,7 +43,10 @@ def pick_voices(script):
     Returns {speaker name: {"gender", "voice", "rate", "pitch", "age"}}.
     """
     lang, genre = script["lang"], script["genre"]
-    gender, rate, pitch = NARRATOR_STYLE[genre]
+    # Narrator: gender from its character.yaml, speed/pitch from config.yaml.
+    gender = script["narrator"]["gender"]
+    style = CONFIG["genres"][genre].get("narrator_voice", {})
+    rate, pitch = style.get("rate", 0), style.get("pitch", 0)
     voices = {NARRATOR: {"gender": gender, "voice": EDGE_VOICES[lang][gender],
                          "rate": rate, "pitch": pitch, "age": "adult"}}
     used = {(voices[NARRATOR]["voice"], pitch)}
