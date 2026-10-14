@@ -147,16 +147,45 @@ forever (also by the GitHub Actions workflows below), and so are your own
 ### Animation
 
 - The background moves slowly (Ken Burns zoom and pan) and **crossfades** when the scene changes.
-- The **speaking** character bounces gently, grows a little and glows. The others
-  dim slightly and breathe (and blink if they have a `blink.png`).
+- The **speaking** character bounces gently, grows a little and glows, and its
+  **mouth flaps** with the voice (see below). The others dim slightly and breathe.
+- Everyone **blinks** every 3–5 seconds.
 - A round picture of the narrator appears while the narrator speaks.
-- Big subtitles show the speaker's name. In short videos the title stays at the top.
+- Subtitles sit in a small, see-through box with the speaker's name. In short
+  videos the title stays at the top.
 - Characters or scenes without a picture are drawn in the simple shape style
   (shape characters' mouths move with the voice).
 
+### Lip movement (mouth flaps) and blinking
+
+Every character picture gets three extra versions, made once and cached next to it:
+`<picture>_mouth_half.png`, `<picture>_mouth_open.png` and `<picture>_blink.png`.
+They are made with **local_sd**, which repaints only a small area around the mouth
+or the eyes (same seed and description, plus "mouth open, talking" / "eyes
+closed"), so the rest of the character stays exactly the same.
+
+While a character speaks, HARMIS checks how loud the voice is every ~80 ms and
+shows the closed, half-open or open mouth, smoothed so it does not flicker.
+
+**Where is the mouth?** `character.yaml` has `mouth_box` and `eyes_box`
+(`[x, y, width, height]` as fractions of the picture). If they are missing,
+HARMIS finds them itself (face detection, or the shape of the head in the cut-out
+picture, or a default for a `type: human` / `type: animal`). It writes the result
+into `character.yaml` so you can correct the numbers. After editing, delete that
+character's `*_mouth_*.png`, `*_blink.png` and `*_variants.json` to remake them.
+
+**Fallback:** if local_sd is not installed, or repainting fails, a simple cartoon
+mouth (a dark oval in a darker skin colour) is drawn over `mouth_box` and opens
+with the voice. Blinking then only happens if you add your own `blink.png`.
+
+`python -m harmis.prepare` (and the `prepare-pictures` workflow) make these
+versions together with the character pictures.
+
 ### Long videos (`--format long`)
 
-- **1920x1080 (16:9)**, 5–7 minutes, 24 frames per second.
+- **1920x1080 (16:9)**, 5–7 minutes, 24 frames per second. If a story comes out
+  longer than 7 minutes, the voices are made again a little faster (up to +25%);
+  if shorter than 5 minutes, a little slower (down to -10%).
 - **Intro title card** (title and a small tagline), then the story, then an
   **ending card** ("कहानी पसंद आई? लाइक करें • शेयर करें • सब्सक्राइब करें",
   text only, no logos).

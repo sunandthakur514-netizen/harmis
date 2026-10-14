@@ -6,6 +6,7 @@ label:                    # how the name is shown on screen
   english: Swan
 gender: f               # m / f (picks the voice)
 age: adult            # child / adult / old
+type: animal             # human / animal (used for the default mouth position)
 seed: 1108              # fixed seed so the picture comes out the same
 description: >-           # fixed look, added to every image prompt
   a graceful white swan with soft white feathers, an orange beak and kind gentle eyes

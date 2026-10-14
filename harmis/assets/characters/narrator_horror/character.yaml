@@ -1,4 +1,4 @@
-# Storyteller shown while narrating horror (mild)
+# Narrator shown while narrating horror (mild)
 # Drop your own picture in this folder as custom.png to replace the generated one.
 name: Narrator              # the name used in scripts
 label:                    # how the name is shown on screen
@@ -6,7 +6,8 @@ label:                    # how the name is shown on screen
   english: Narrator
 gender: m               # m / f (picks the voice)
 age: old            # child / adult / old
+type: human             # human / animal (used for the default mouth position)
 seed: 1119              # fixed seed so the picture comes out the same
 description: >-           # fixed look, added to every image prompt
-  a mysterious but gentle old Indian man with a long white beard, wearing a dark grey
-  shawl, holding a softly glowing lantern
+  a mysterious but gentle old Indian man narrator with a long white beard, wearing a
+  dark grey shawl, holding a softly glowing lantern

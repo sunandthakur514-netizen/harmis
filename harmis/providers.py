@@ -304,6 +304,20 @@ class ImageChain:
             print(f"[images]   waiting {wait:.0f}s, then trying again ...")
             time.sleep(wait)
 
+    def local_pipe(self):
+        """The loaded Stable Diffusion pipeline if local_sd is on for this run, else None.
+
+        Used for the lip-movement variants (repainting the mouth and eyes).
+        """
+        for provider in self.providers:
+            if isinstance(provider, LocalSDProvider) and self.failures[provider.name] < self.disable_after:
+                try:
+                    return provider._load()
+                except Exception as error:
+                    self.failures[provider.name] = self.disable_after
+                    print(f"[images] local_sd cannot be used ({describe(error)}): skipping it for the rest of this run")
+        return None
+
     def generate(self, prompt, width, height, seed, label, negative="", compact=None):
         """Return (image, provider name) or (None, "shapes") if every provider failed."""
         for provider in self.providers:

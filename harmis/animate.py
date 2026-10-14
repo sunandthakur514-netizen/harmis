@@ -10,8 +10,9 @@ Layers, from back to front:
      Indian-style drawn background) with slow Ken Burns camera movement and
      crossfades when the scene changes
   2. the characters: transparent PNGs from the character library. The speaker
-     bounces, grows a little and glows; the others breathe gently and blink
-     (if a blink.png is provided). Characters without a picture are drawn as
+     bounces, grows a little and glows, and its mouth flaps with the voice
+     (closed / half-open / open pictures, chosen from the loudness every 80 ms);
+     everyone blinks every 3-5 s and breathes gently. Characters without a picture are drawn as
      simple shapes whose mouth moves with the voice. In long videos each scene
      shows only the characters who are in it.
   3. a small round narrator picture while the narrator speaks
@@ -32,12 +33,14 @@ import os
 import random
 import subprocess
 import wave
+import zlib
 
 import imageio_ffmpeg
 import numpy as np
 from moviepy import AudioFileClip, VideoClip
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps, features
 
+from . import lipsync
 from .config import CONFIG
 from .script import NARRATOR
 
@@ -102,12 +105,12 @@ class Layout:
     SETTINGS = {
         "short": dict(ground_y=1230, char_height=820, char_max_w=520, baseline=1450,
                       shape_size=360, shape_cy=980, tags_below=True,
-                      sub_height=600, sub_sizes=(70, 62, 54, 48), sub_lines=4, sub_margin=50, sub_name=48,
+                      sub_height=600, sub_sizes=(60, 54, 48, 42), sub_lines=4, sub_margin=70, sub_name=40,
                       title_size=80, cameo_size=240, intro=1.0, outro=2.0, pad_to_min=True,
                       cast_per_scene=False),
         "long": dict(ground_y=800, char_height=580, char_max_w=440, baseline=815,
                      shape_size=300, shape_cy=600, tags_below=False,
-                     sub_height=330, sub_sizes=(54, 48, 42), sub_lines=3, sub_margin=140, sub_name=40,
+                     sub_height=330, sub_sizes=(46, 42, 38), sub_lines=3, sub_margin=160, sub_name=34,
                      title_size=110, cameo_size=190, intro=None, outro=None, pad_to_min=False,
                      cast_per_scene=True),
     }
@@ -352,14 +355,19 @@ def render_subtitle(speaker, text, accent, layout):
         lines = wrap_text(draw, text, text_font, layout.w - 2 * margin - 100)
         if len(lines) <= layout.sub_lines:
             break
-    line_h = int(size * 1.45)  # Devanagari needs extra room above and below
-    name_h = int(layout.sub_name * 1.85)
-    box_h = name_h + 20 + line_h * len(lines)
+    line_h = int(size * 1.4)  # Devanagari needs extra room above and below
+    name_h = int(layout.sub_name * 1.5) if speaker else 0
+    box_h = name_h + 24 + line_h * len(lines)
     top = max(0, layout.sub_height - box_h - 20)
-    draw.rounded_rectangle([margin, top, layout.w - margin, layout.sub_height - 20], radius=40, fill=(0, 0, 0, 170))
+    # A compact, see-through box that is only as wide as the text.
+    text_w = max([draw.textlength(line, font=text_font) for line in lines] +
+                 [draw.textlength(speaker or "", font=name_font)])
+    box_w = min(layout.w - 2 * margin, text_w + 90)
+    left = (layout.w - box_w) / 2
+    draw.rounded_rectangle([left, top, left + box_w, layout.sub_height - 20], radius=30, fill=(0, 0, 0, 115))
     if speaker:
-        draw.text((margin + 50, top + 18), speaker, font=name_font, fill=accent)
-    y = top + name_h + 1
+        draw.text((left + 30, top + 10), speaker, font=name_font, fill=accent, stroke_width=2, stroke_fill="black")
+    y = top + name_h + 8
     for line in lines:
         w = draw.textlength(line, font=text_font)
         draw.text(((layout.w - w) / 2, y), line, font=text_font, fill="white", stroke_width=4, stroke_fill="black")
@@ -435,20 +443,33 @@ def render_end_card(base, lang, theme, layout):
 # ---------------------------------------------------------------------------
 # Character pictures
 # ---------------------------------------------------------------------------
-def prepare_character(image, layout):
-    """Resize a character PNG once and make a dimmed copy and a soft glow for it."""
+def _dim(image):
+    dim = ImageEnhance.Brightness(image.convert("RGB")).enhance(0.8).convert("RGBA")
+    dim.putalpha(image.getchannel("A"))
+    return dim
+
+
+def prepare_character(frames, layout):
+    """Resize a character's pictures once (closed / half / open mouth, blink) and
+    make dimmed copies and a soft glow."""
+    image = frames["closed"]
     scale = min(layout.char_height / image.height, layout.char_max_w / image.width)
-    normal = image.resize((max(1, int(image.width * scale)), max(1, int(image.height * scale))), Image.LANCZOS)
-    rgb, alpha = normal.convert("RGB"), normal.getchannel("A")
-    dim = ImageEnhance.Brightness(rgb).enhance(0.8).convert("RGBA")
-    dim.putalpha(alpha)
+    size = (max(1, int(image.width * scale)), max(1, int(image.height * scale)))
+    normal = image.resize(size, Image.LANCZOS)
+    variants = {key: frames[key].resize(size, Image.LANCZOS) for key in ("half", "open", "blink") if frames.get(key)}
+    alpha = normal.getchannel("A")
     pad = 40
     glow_alpha = Image.new("L", (normal.width + 2 * pad, normal.height + 2 * pad), 0)
     glow_alpha.paste(alpha, (pad, pad))
     glow_alpha = glow_alpha.filter(ImageFilter.GaussianBlur(18)).point(lambda a: min(255, int(a * 1.6)))
     glow = Image.new("RGBA", glow_alpha.size, (255, 235, 150, 0))
     glow.putalpha(glow_alpha)
-    return {"normal": normal, "dim": dim, "glow": glow, "pad": pad}
+    mouth_box = frames.get("mouth_box")
+    drawn = frames.get("mouth_mode") != "inpainted" or "open" not in variants
+    return {"normal": normal, "dim": _dim(normal), "glow": glow, "pad": pad, **variants,
+            "dim_blink": _dim(variants["blink"]) if "blink" in variants else None,
+            "mouth_box": mouth_box, "drawn_mouth": bool(drawn and mouth_box),
+            "colours": lipsync.mouth_colours(normal, mouth_box) if mouth_box else None}
 
 
 def render_cameo(image, size):
@@ -639,10 +660,22 @@ def make_video(script, voiced_lines, out_path, visuals, work_dir):
     for info in characters:
         pictures = visuals["characters"].get(info["name"], {})
         if pictures.get("image") is not None:
-            sprite = prepare_character(pictures["image"], layout)
-            blink = pictures.get("blink")
-            sprite["blink"] = blink.resize(sprite["normal"].size, Image.LANCZOS) if blink is not None else None
-            sprites[info["name"]] = sprite
+            sprites[info["name"]] = prepare_character(pictures.get("frames") or {"closed": pictures["image"]}, layout)
+    # Everyone blinks every 3-5 seconds (different times for each character).
+    blinks = {c["name"]: lipsync.blink_times(total, zlib.crc32(c["name"].encode())) for c in characters}
+
+    def blinking(name, t):
+        times = blinks.get(name, [])
+        index = bisect.bisect_right(times, t) - 1
+        return index >= 0 and t - times[index] < 0.15
+
+    # Mouth movement for every line: closed / half / open, decided every ~80 ms from the voice.
+    for number, seg in enumerate(segments):
+        count = int(math.ceil((seg["end"] - seg["start"]) * layout.fps)) + 2
+        loud = seg["loudness"]
+        if loud is not None and len(loud) < count:
+            loud = np.pad(loud, (0, count - len(loud)))
+        seg["mouth_state"], seg["mouth_level"] = lipsync.mouth_track(loud, count, layout.fps, seed=number)
     narrator = visuals.get("narrator")
     cameo = render_cameo(narrator, layout.cameo_size) if narrator is not None else None
 
@@ -685,13 +718,21 @@ def make_video(script, voiced_lines, out_path, visuals, work_dir):
             frame = Image.blend(previous, frame, (t - span["start"]) / FADE)
         return frame  # RGB, so semi-transparent drawing blends
 
-    def draw_sprite(frame, sprite, cx, speaking, someone_speaks, local, t, i):
+    def draw_sprite(frame, sprite, cx, speaking, someone_speaks, local, t, i, name, seg):
         """Paste one character picture with its idle / speaking movement."""
         breathe = math.sin(t * 2.2 + i * 1.7)
         sx, sy, lift = 1 - 0.004 * breathe, 1 + 0.012 * breathe, 0
-        image = sprite["dim"] if someone_speaks and not speaking else sprite["normal"]
-        if sprite["blink"] is not None and (t + i * 1.3) % 3.4 < 0.15:
-            image = sprite["blink"]
+        dimmed = someone_speaks and not speaking
+        image = sprite["dim"] if dimmed else sprite["normal"]
+        if blinking(name, t) and sprite.get("blink") is not None:
+            image = sprite["dim_blink"] if dimmed else sprite["blink"]
+        elif speaking:
+            index = min(int(local * layout.fps), len(seg["mouth_state"]) - 1)
+            if sprite["drawn_mouth"]:  # no painted variants: draw a mouth that opens with the voice
+                image = lipsync.draw_mouth(sprite["normal"], sprite["mouth_box"],
+                                           float(seg["mouth_level"][index]), sprite["colours"])
+            else:
+                image = (sprite["normal"], sprite.get("half", sprite["normal"]), sprite["open"])[seg["mouth_state"][index]]
         if speaking:
             ease = min(1.0, local / 0.25)
             sx = sy = 1 + 0.05 * ease
@@ -725,18 +766,15 @@ def make_video(script, voiced_lines, out_path, visuals, work_dir):
             speaking = seg is not None and seg["speaker"] == name
             local = t - seg["start"] if speaking else 0.0
             if name in sprites:
-                draw_sprite(frame, sprites[name], cx, speaking, someone_speaks, local, t, i)
+                draw_sprite(frame, sprites[name], cx, speaking, someone_speaks, local, t, i, name, seg)
                 continue
-            # No picture: simple shape character whose mouth follows the voice.
+            # No picture: simple shape character whose mouth follows the (smoothed) voice.
             mouth, bounce = 0.0, 0
             if speaking:
-                if seg["loudness"] is not None:
-                    mouth = float(seg["loudness"][min(int(local * layout.fps), len(seg["loudness"]) - 1)])
-                else:
-                    mouth = 0.5 + 0.5 * math.sin(local * 18)
+                mouth = float(seg["mouth_level"][min(int(local * layout.fps), len(seg["mouth_level"]) - 1)])
                 bounce = int(18 * abs(math.sin(local * 6)))
             idle = int(8 * math.sin(t * 2 + i * 1.7))
-            blink = (t + i * 1.3) % 3.2 < 0.12
+            blink = blinking(name, t)
             draw_character(draw, cx, layout.shape_cy + idle - bounce, layout.shape_size, colour_of[name],
                            shape_of[name], mouth, blink, info_of[name], name_font, layout)
 

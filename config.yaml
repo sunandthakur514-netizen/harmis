@@ -58,6 +58,7 @@ image_providers:
     model: stabilityai/sd-turbo
     variant: fp16             # download the half-size files (turned into full precision for the CPU)
     steps: 2                  # 1-4; more steps = a little better, a little slower
+    variant_steps: 4          # steps for repainting the mouth / eyes (lip-movement variants)
     size: 512                 # short side of the picture the model makes (then enlarged)
     max_side: 768             # long side limit for tall / wide pictures
     threads: 0                # CPU threads to use; 0 = all
@@ -108,7 +109,8 @@ safety:
     no blood, no weapons, original character design, no text, no logo, no watermark
   negative: >-
     nsfw, nudity, gore, blood, violence, weapon, horror face, text, letters,
-    watermark, logo, signature, copyrighted character
+    watermark, logo, signature, copyrighted character, two characters, pair,
+    group, crowd, duplicate, multiple people, multiple animals
   blocked_words: [disney, pixar, dreamworks, ghibli, marvel, mickey, minnie, elsa,
                   frozen, shrek, pokemon, pikachu, naruto, doraemon, shinchan,
                   chhota bheem, motu patlu, peppa, spongebob, barbie, superman,

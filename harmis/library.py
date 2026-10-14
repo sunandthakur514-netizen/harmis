@@ -27,6 +27,7 @@ import numpy as np
 import yaml
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
+from . import lipsync
 from .config import CONFIG
 
 ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
@@ -57,8 +58,9 @@ def style_text(style):
 def character_prompt(character, style):
     return make_safe(
         f"{style_text(style)}. Full body character: {character['description'].strip()}. "
-        "Standing, facing the viewer, friendly expression, whole body visible from head to feet, "
-        "centered, single character only, plain pure white background, no other objects. "
+        "Single character, alone, full body, centered. Exactly one character, standing, facing the "
+        "viewer, friendly expression, whole body visible from head to feet, plain pure white "
+        "background, no other characters or objects. "
         f"{CONFIG['safety']['always_add']}"
     )
 
@@ -77,15 +79,24 @@ def background_prompt(description, style, mood, fmt="short"):
 SAFE_CORE = "kid-friendly, wholesome, family-safe, non-violent"
 
 
+def short_style(style):
+    """The first two parts of a style, e.g. '3D animated movie style render, cute stylised proportions'."""
+    return ", ".join(part.strip() for part in style_text(style).split(",")[:2])
+
+
 def compact_character_prompt(character, style):
-    short_style = style_text(style).split(",")[0]
-    return make_safe(f"{short_style}, {SAFE_CORE}, full body, single character, standing, "
+    return make_safe(f"{short_style(style)}, {SAFE_CORE}, single character, alone, full body, centered, "
                      f"plain white background, {character['description'].strip()}")
 
 
+def face_prompt(character, style):
+    """Prompt for repainting the mouth / eyes (lip movement variants)."""
+    return make_safe(f"{short_style(style)}, {SAFE_CORE}, close-up of the face, "
+                     f"{character['description'].strip()}")
+
+
 def compact_background_prompt(description, style, mood):
-    short_style = style_text(style).split(",")[0]
-    return make_safe(f"{short_style}, {SAFE_CORE}, background scenery, no people, "
+    return make_safe(f"{short_style(style)}, {SAFE_CORE}, background scenery, no people, "
                      f"{description.strip()}, {mood}")
 
 
@@ -176,6 +187,7 @@ class Library:
         self.refresh = refresh  # True = ignore cached generated pictures
         self.fmt = fmt          # "short" (vertical) or "long" (16:9) backgrounds
         self.status = {}        # picture label -> "cached", "your own picture", provider name or "shapes"
+        self.base_paths = {}    # character id -> file of its picture (for the lip-movement variants)
         self.characters = {}    # id -> data from character.yaml
         for folder in sorted(os.listdir(CHARACTER_DIR)):
             path = os.path.join(CHARACTER_DIR, folder, "character.yaml")
@@ -230,6 +242,7 @@ class Library:
         custom = os.path.join(folder, "custom.png")
         if os.path.exists(custom):
             image = Image.open(custom)
+            self.base_paths[data["id"]] = custom
             self.status[f"character {data['id']}"] = "your own picture"
             print(f"[library] {data['id']}: using your custom.png")
             return image.convert("RGBA") if has_transparency(image.convert("RGBA")) else remove_background(image)
@@ -240,6 +253,7 @@ class Library:
         if not self.refresh:
             cached = _load_cached(png, meta, prompt)
             if cached is not None:
+                self.base_paths[data["id"]] = png
                 self.status[f"character {data['id']}"] = "cached"
                 print(f"[library] {data['id']}: using cached {self.style}.png")
                 return cached.convert("RGBA")
@@ -254,7 +268,50 @@ class Library:
         cut = remove_background(image)
         cut.save(png)
         _save_meta(meta, prompt, provider, self.style)
+        self.base_paths[data["id"]] = png
         return cut
+
+    def boxes(self, data, base):
+        """Mouth and eyes boxes from character.yaml, or found now and written into it."""
+        mouth, eyes = data.get("mouth_box"), data.get("eyes_box")
+        if mouth and eyes:
+            return [float(v) for v in mouth], [float(v) for v in eyes]
+        mouth, eyes, method = lipsync.find_boxes(base, data.get("type", "human"))
+        lipsync.save_boxes_to_yaml(os.path.join(CHARACTER_DIR, data["id"], "character.yaml"), mouth, eyes, method)
+        data["mouth_box"], data["eyes_box"] = mouth, eyes
+        print(f"[lipsync] {data['id']}: mouth/eyes found by {method}, saved in character.yaml")
+        return mouth, eyes
+
+    def character_frames(self, data, base):
+        """Picture + lip-movement variants: {"closed", "half", "open", "blink", "mouth_box", "mouth_mode"}.
+
+        Variants are made with local_sd when it is available (and cached); otherwise
+        the animation draws a simple mouth over mouth_box.
+        """
+        if base is None:
+            return None
+        mouth, eyes = self.boxes(data, base)
+        frames = {"closed": base, "mouth_box": mouth, "eyes_box": eyes, "mouth_mode": "drawn"}
+        base_path = self.base_paths.get(data["id"])
+        label = f"mouth {data['id']}"
+        cached = None if (self.refresh or not base_path) else lipsync.load_variants(base_path, mouth, eyes)
+        if cached is None and base_path:
+            pipe = self.chain.local_pipe()
+            if pipe is not None:
+                lipsync.make_variants(pipe, base, base_path, mouth, eyes, face_prompt(data, self.style),
+                                      data.get("seed", 1), data["id"])
+                cached = lipsync.load_variants(base_path, mouth, eyes)
+        if cached is not None:
+            info, images = cached
+            frames.update(images)
+            frames["mouth_mode"] = info["mouth"]
+            self.status[label] = f"variants: mouth {info['mouth']}, blink {info['blink']}"
+        else:
+            self.status[label] = "drawn mouth (local_sd not available to make variants)"
+        user_blink = self.blink_image(data)  # your own blink.png always wins
+        if user_blink is not None:
+            frames["blink"] = user_blink.resize(base.size)
+        return frames
 
     def blink_image(self, data):
         path = os.path.join(CHARACTER_DIR, data["id"], "blink.png")
@@ -309,8 +366,8 @@ class Library:
                    "characters": {}, "narrator": None}
         for character in script["characters"]:
             data = self.characters[character["id"]]
-            visuals["characters"][character["name"]] = {"image": self.character_image(data),
-                                                        "blink": self.blink_image(data)}
+            base = self.character_image(data)
+            visuals["characters"][character["name"]] = {"image": base, "frames": self.character_frames(data, base)}
         narrator_id = script["narrator"].get("id")
         if narrator_id:
             visuals["narrator"] = self.character_image(self.characters[narrator_id])
@@ -335,10 +392,17 @@ class Library:
         if kind == "character":
             data = self.characters[name]
             folder = os.path.join(CHARACTER_DIR, name)
-            if os.path.exists(os.path.join(folder, "custom.png")):
-                return True
+            custom = os.path.join(folder, "custom.png")
             png, meta = os.path.join(folder, f"{self.style}.png"), os.path.join(folder, f"{self.style}.json")
-            prompt = character_prompt(data, self.style)
+            if os.path.exists(custom):
+                png = custom
+            elif _load_cached(png, meta, character_prompt(data, self.style)) is None:
+                return False
+            # The picture exists; are its lip-movement variants made too?
+            if not (data.get("mouth_box") and data.get("eyes_box")):
+                return False
+            return lipsync.load_variants(png, [float(v) for v in data["mouth_box"]],
+                                         [float(v) for v in data["eyes_box"]]) is not None
         else:
             if os.path.exists(os.path.join(BACKGROUND_DIR, f"{name}.png")):
                 return True
@@ -354,5 +418,6 @@ class Library:
         """Get or make one picture ("scene:<name>" or "character:<id>")."""
         kind, name = item.split(":", 1)
         if kind == "character":
-            return self.character_image(self.characters[name])
+            data = self.characters[name]
+            return self.character_frames(data, self.character_image(data))
         return self.background_image(name)

@@ -5,3 +5,4 @@ edge-tts>=6.1
 requests
 PyYAML>=6
 rembg[cpu]            # removes picture backgrounds (pip picks a version that works with Pillow 11)
+opencv-python-headless  # finding faces for the mouth position (also used by rembg)

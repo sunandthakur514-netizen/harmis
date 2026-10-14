@@ -132,8 +132,18 @@ def main():
                     break
             story, voiced = best
         elif fmt == "long" and not min_length <= length <= max_length:
-            print(f"[main] Note: this long video will be {length / 60:.1f} minutes "
-                  f"(the target is {min_length / 60:.0f}-{max_length / 60:.0f} minutes).")
+            # Aim for 5-7 minutes: speak a little faster (up to +25%) or slower (down to -10%).
+            speech = length - (len(voiced) - 1) * animate.GAP - animate.Layout(fmt).intro - animate.Layout(fmt).outro
+            target = (max_length - 5) if length > max_length else (min_length + 5)
+            change = round((speech / max(1.0, speech - (length - target)) - 1) * 100) + (2 if length > max_length else -2)
+            change = max(-10, min(25, change))
+            print(f"[main] Long video would be {length / 60:.1f} min; re-making voices {change:+d}% "
+                  f"{'faster' if change > 0 else 'slower'} to fit {min_length / 60:.0f}-{max_length / 60:.0f} min.")
+            voiced = voice.make_voices(story, os.path.join(work_dir, "audio_paced"), rate_change=change)
+            length = spoken_length(voiced, fmt)
+            if not min_length <= length <= max_length:
+                print(f"[main] Note: this long video will be {length / 60:.1f} minutes "
+                      f"(the target is {min_length / 60:.0f}-{max_length / 60:.0f} minutes).")
 
         # Short rhymes are sung twice, like children do (the same audio is reused).
         if fmt == "short" and args.genre == "kids_rhyme" and spoken_length(voiced + voiced, fmt) <= max_length:

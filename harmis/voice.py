@@ -102,13 +102,16 @@ def write_silence(text, path, rate=22050):
         file.writeframes(b"\x00\x00" * int(seconds * rate))
 
 
-def make_voices(script, out_dir):
-    """Create one audio file per line.
+def make_voices(script, out_dir, rate_change=0):
+    """Create one audio file per line. rate_change speeds every voice up (+) or down (-), in %.
 
     Returns a list of dicts: {"speaker", "text", "audio", "duration"}.
     """
     os.makedirs(out_dir, exist_ok=True)
     voices = pick_voices(script)
+    if rate_change:  # e.g. +8 = everyone speaks 8% faster (used to fit long videos into 5-7 min)
+        for style in voices.values():
+            style["rate"] += int(rate_change)
     use_edge = True  # stop trying edge-tts after the first failure (saves time)
     results = []
 

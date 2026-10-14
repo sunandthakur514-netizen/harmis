@@ -6,6 +6,7 @@ label:                    # how the name is shown on screen
   english: Lion
 gender: m               # m / f (picks the voice)
 age: adult            # child / adult / old
+type: animal             # human / animal (used for the default mouth position)
 seed: 1120              # fixed seed so the picture comes out the same
 description: >-           # fixed look, added to every image prompt
   a big proud cartoon lion with a fluffy golden-brown mane, a puffed-up chest and a
