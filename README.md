@@ -140,8 +140,9 @@ short videos) or `<scene>__<style>__wide.png` (16:9, long videos).
 It is used for both formats (cropped to fit).
 
 To make new pictures instead of the cached ones, add `--refresh-images`.
-Generated pictures are not committed to git (see `.gitignore`); your own
-`custom.png` and `<scene>.png` files are.
+Generated pictures **are committed** to git, so they are made once and reused
+forever (also by the GitHub Actions workflows below), and so are your own
+`custom.png` and `<scene>.png` files.
 
 ### Animation
 
@@ -244,6 +245,46 @@ Options:
 The first video with new characters takes longer, because the pictures are
 generated first (or use `harmis.prepare` beforehand). After that, a short video
 takes about a minute. A long video takes roughly 10–20 minutes, depending on your computer.
+
+## Run it on GitHub Actions (free, no computer needed)
+
+The repository is public, so GitHub's standard runners (4 CPU cores, 16 GB) are
+free. Two workflows do the heavy work there. Start them from the **Actions** tab
+of the repository: pick the workflow on the left, click **Run workflow**, choose
+the options, and click the green **Run workflow** button.
+
+### `prepare-pictures`: make and commit a story's pictures
+
+Options: **story**, **style** (`auto` = the genre's style) and **format** (`auto` = the story's own format).
+
+1. **list**: finds which scene and character pictures the story still needs.
+2. **generate**: makes each missing picture in its own job, up to 5 at a time,
+   with `local_sd` (Stable Diffusion Turbo on the runner's CPU). The model and the
+   pip packages are cached, so only the very first run downloads them.
+3. **commit**: collects the new pictures and commits them to `harmis/assets/`.
+
+Pictures that already exist are skipped, so you can run it again to fill in any
+that failed. Locally, the same steps are:
+`python -m harmis.prepare --story <id> --list-file missing.json` and
+`python -m harmis.prepare --story <id> --providers local_sd --only scene:palace_court`.
+
+After it has committed, run `git pull` to get the pictures on your own computer too.
+
+### `make-video`: render a video and download it
+
+Options: **story**, **lang**, **style**, **format**, and **make missing pictures**.
+
+It installs HARMIS, ffmpeg and espeak-ng, renders the video with the pictures in
+`harmis/assets/`, and attaches the mp4 to the run. Open the finished run, scroll to
+**Artifacts**, and download `harmis-video-<story>-<lang>` (a zip with the mp4;
+kept for 30 days). Real edge-tts voices work there, because the runners have internet.
+
+Run `prepare-pictures` first for a new story. Otherwise missing pictures are drawn
+in the shape style. Ticking **make missing pictures** makes them with `local_sd`
+during the video run instead, which is slower, and those pictures are **not** committed.
+
+Both workflows use **Python 3.12** and install the small CPU-only torch from the
+PyTorch index.
 
 ## Settings: `config.yaml`
 

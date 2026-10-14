@@ -315,3 +315,44 @@ class Library:
         if narrator_id:
             visuals["narrator"] = self.character_image(self.characters[narrator_id])
         return visuals
+
+    # ----- used by `harmis.prepare --list-file / --only` (GitHub Actions) -----
+    def needed_pictures(self, script):
+        """Every picture a script needs, as ["scene:<name>", "character:<id>", ...]."""
+        items = []
+        for line in script["lines"]:
+            if line.get("scene") and f"scene:{line['scene']}" not in items:
+                items.append(f"scene:{line['scene']}")
+        for character in script["characters"]:
+            items.append(f"character:{character['id']}")
+        if script["narrator"].get("id"):
+            items.append(f"character:{script['narrator']['id']}")
+        return items
+
+    def is_ready(self, item):
+        """True if a picture exists already (your own, or cached from the same prompt)."""
+        kind, name = item.split(":", 1)
+        if kind == "character":
+            data = self.characters[name]
+            folder = os.path.join(CHARACTER_DIR, name)
+            if os.path.exists(os.path.join(folder, "custom.png")):
+                return True
+            png, meta = os.path.join(folder, f"{self.style}.png"), os.path.join(folder, f"{self.style}.json")
+            prompt = character_prompt(data, self.style)
+        else:
+            if os.path.exists(os.path.join(BACKGROUND_DIR, f"{name}.png")):
+                return True
+            if name not in self.scenes:
+                return True  # unknown scene: nothing to make
+            base = os.path.join(BACKGROUND_DIR, f"{name}__{self.style}{CACHE_SUFFIX[self.fmt]}")
+            png, meta = base + ".png", base + ".json"
+            prompt = background_prompt(self.scenes[name], self.style,
+                                       CONFIG["genres"][self.genre].get("mood", ""), self.fmt)
+        return _load_cached(png, meta, prompt) is not None
+
+    def make_picture(self, item):
+        """Get or make one picture ("scene:<name>" or "character:<id>")."""
+        kind, name = item.split(":", 1)
+        if kind == "character":
+            return self.character_image(self.characters[name])
+        return self.background_image(name)

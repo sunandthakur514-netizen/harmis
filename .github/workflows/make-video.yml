@@ -1,0 +1,92 @@
+# Render a video on GitHub's free runners and attach the mp4 to the run.
+#
+# Run it from the Actions tab: "make-video" -> "Run workflow". When it is done,
+# download the video from the run page under "Artifacts".
+# Pictures come from harmis/assets (run "prepare-pictures" first for new
+# stories); missing ones are drawn in the simple shape style unless
+# "make missing pictures" is ticked.
+name: make-video
+
+on:
+  workflow_dispatch:
+    inputs:
+      story:
+        description: Built-in story
+        type: choice
+        options: [birbal_khichdi, monkey_crocodile, tenali_thieves, talkative_tortoise,
+                  chham_chham_baarish, diwali_mela, gali_cricket, dadi_smartphone,
+                  haveli_paayal, aakhri_bus, sher_khargosh, birbal_lakdi]
+      lang:
+        description: Language (long stories are Hindi only)
+        type: choice
+        default: hindi
+        options: [hindi, hinglish, english]
+      style:
+        description: Art style (auto = the genre's style from config.yaml)
+        type: choice
+        default: auto
+        options: [auto, 3d_cartoon, storybook, anime]
+      format:
+        description: Video format (auto = the story's own format)
+        type: choice
+        default: auto
+        options: [auto, short, long]
+      make_missing_pictures:
+        description: Make missing pictures with local_sd during this run (slower; they are NOT committed)
+        type: boolean
+        default: false
+
+env:
+  PYTHON_VERSION: "3.12"
+  HF_HUB_DISABLE_TELEMETRY: "1"
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-local-sd.txt
+      - name: Install system tools (ffmpeg, espeak-ng fallback voice)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng
+      - name: Install HARMIS
+        run: pip install -r requirements.txt
+      - name: Install local_sd (CPU-only torch)
+        if: inputs.make_missing_pictures
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements-local-sd.txt
+      - name: Restore models
+        if: inputs.make_missing_pictures
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-sd-turbo-fp16-v1
+      - name: Restore rembg model
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.u2net
+          key: rembg-u2net-v1
+      - name: Render the video
+        run: |
+          ARGS="--story ${{ inputs.story }} --lang ${{ inputs.lang }}"
+          [ "${{ inputs.style }}" != "auto" ] && ARGS="$ARGS --style ${{ inputs.style }}"
+          [ "${{ inputs.format }}" != "auto" ] && ARGS="$ARGS --format ${{ inputs.format }}"
+          if [ "${{ inputs.make_missing_pictures }}" = "true" ]; then
+            ARGS="$ARGS --providers local_sd"
+          else
+            ARGS="$ARGS --providers none"   # only pictures already in harmis/assets
+          fi
+          python -m harmis.main $ARGS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: harmis-video-${{ inputs.story }}-${{ inputs.lang }}
+          path: output/*.mp4
+          if-no-files-found: error
+          retention-days: 30
