@@ -1,0 +1,5 @@
+# OPTIONAL: only needed for uploading to YouTube (python -m harmis.publish --to youtube).
+# Instagram publishing and captions need nothing extra.
+google-api-python-client>=2.100
+google-auth-oauthlib>=1.0
+google-auth-httplib2>=0.2

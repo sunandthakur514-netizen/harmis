@@ -149,3 +149,39 @@ genres:
     narrator_voice: {rate: -15, pitch: -10}
     default_scene: haveli_night
     mood: dark moonlit night, mysterious and mildly spooky, suitable for teenagers, no gore
+
+# ---------------------------------------------------------------------------
+# Publishing (python -m harmis.publish). Secrets are NEVER stored here: they come
+# from environment variables / GitHub or Codespaces secrets (see README).
+# ---------------------------------------------------------------------------
+publish:
+  youtube:
+    privacy: private          # private | unlisted | public
+    category_id: "27"         # 27 = Education
+    language: hi
+    thumbnail_for_long: true  # upload a custom thumbnail (title card) for long videos
+  instagram:
+    graph_api: https://graph.facebook.com/v21.0
+    share_to_feed: true
+    poll_seconds: 10          # how often to check if Instagram finished processing
+    max_wait_seconds: 900
+  github:                     # temporary public link for Instagram (a GitHub Release asset)
+    api: https://api.github.com
+    uploads: https://uploads.github.com
+  hashtags:                   # per genre; the best ones first (YouTube uses the first 15)
+    kids_story: ["#hindikahani", "#moralstories", "#kidsstories", "#bachonkikahani",
+                 "#hindistories", "#kahaniyan", "#cartoon", "#storytime", "#bedtimestories"]
+    kids_rhyme: ["#hindirhymes", "#balgeet", "#nurseryrhymes", "#kidssongs", "#hindipoem",
+                 "#bachonkegeet", "#kidsrhymes", "#cartoon", "#kids"]
+    comedy: ["#hindicomedy", "#funny", "#familycomedy", "#comedy", "#hindistory",
+             "#desicomedy", "#cartoon", "#hasya", "#funnyvideo"]
+    horror: ["#hindihorror", "#horrorstory", "#bhootkikahani", "#mysterystory", "#hindistory",
+             "#scarystory", "#darrkikahani", "#mystery"]
+    by_source:                # added only to stories from that folk-tale collection
+      Panchatantra: ["#panchatantra", "#panchatantrakahaniya"]
+      Jataka: ["#jatakakatha", "#jatakatales"]
+      Akbar-Birbal: ["#akbarbirbal", "#birbal"]
+      Tenali Raman: ["#tenaliraman", "#tenalirama"]
+    always: ["#harmis", "#hindi"]
+    shorts: ["#shorts"]       # added to YouTube Shorts
+    reels: ["#reels", "#reelsindia"]   # added to Instagram Reels

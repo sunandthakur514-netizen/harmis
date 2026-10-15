@@ -238,6 +238,7 @@ def build_sample(sample, genre, lang, library, fmt="short"):
         lines.append({"speaker": line[0], "text": line[column], "scene": scene, "cast": cast})
     return {
         "id": sample["id"],
+        "source": sample.get("source", ""),
         "title": sample["title"][lang],
         "tagline": sample.get("tagline", TAGLINE[genre])[lang] if fmt == "long" else "",
         "genre": genre,

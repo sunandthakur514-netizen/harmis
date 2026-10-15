@@ -38,6 +38,25 @@ def output_path(out_dir, genre, lang, fmt):
     return path
 
 
+def save_story_meta(story, video_path, length, style):
+    """Save what the video is about as <video>.story.json (for captions and publishing)."""
+    import json
+    narrator_lines = [line["text"] for line in story["lines"] if line["speaker"] == script.NARRATOR]
+    moral = next((t for t in reversed(narrator_lines)
+                  if t.lower().startswith(("सीख", "seekh", "moral"))), "")
+    meta = {
+        "title": story["title"], "story_id": story.get("id", ""), "genre": story["genre"],
+        "lang": story["lang"], "format": story.get("format", "short"), "style": style,
+        "source": story.get("source", ""), "tagline": story.get("tagline", ""),
+        "characters": [c["label"] for c in story["characters"]],
+        "summary": narrator_lines[0] if narrator_lines else story["lines"][0]["text"],
+        "moral": moral, "duration": round(length, 1),
+    }
+    with open(os.path.splitext(video_path)[0] + ".story.json", "w", encoding="utf-8") as file:
+        json.dump(meta, file, ensure_ascii=False, indent=2)
+    return meta
+
+
 def spoken_length(voiced_lines, fmt):
     """Length of the video if we use these voice clips."""
     return animate.build_timeline(voiced_lines, fmt)[1]
@@ -160,6 +179,14 @@ def main():
         path = output_path(args.out, args.genre, story["lang"], fmt)
         print(f"[main] Rendering video ({spoken_length(voiced, fmt):.1f}s) ...")
         path, length = animate.make_video(story, voiced, path, visuals, work_dir)
+
+    # Story details + captions next to the video (used by `python -m harmis.publish`).
+    save_story_meta(story, path, length, args.style)
+    try:
+        from . import captions
+        captions.make_captions(path)
+    except Exception as error:  # captions must never break making a video
+        print(f"[main] Could not make captions ({type(error).__name__}: {error})")
 
     print(f"\nDone! Saved {path} ({length:.1f} seconds)")
 

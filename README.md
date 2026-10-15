@@ -315,6 +315,118 @@ during the video run instead, which is slower, and those pictures are **not** co
 Both workflows use **Python 3.12** and install the small CPU-only torch from the
 PyTorch index.
 
+## Publishing to YouTube and Instagram
+
+Every video gets captions automatically: `harmis.main` saves `<video>.story.json`
+(what the story is about) and `<video>.json` with a title (max 90 characters), a
+description and hashtags in Hindi and English. Gemini writes them if
+`GEMINI_API_KEY` is set; otherwise templates use the story's title, moral,
+characters and genre plus the hashtag lists under `publish: hashtags:` in
+`config.yaml`. Shorts get `#shorts`, Reels get `#reels`, and copyrighted names
+are always removed. You can make them again with `python -m harmis.captions <video>.mp4`.
+
+**Publish a video:**
+
+```bash
+python -m harmis.publish --video output/2026-10-15_kids_story_hindi.mp4 --to youtube,instagram --dry-run
+python -m harmis.publish --video output/2026-10-15_kids_story_hindi.mp4 --to youtube,instagram
+```
+
+- `--dry-run` shows exactly what would be posted and posts nothing. Always try it first.
+- Short videos go to YouTube as **Shorts** and to Instagram as **Reels**. Long
+  videos go to YouTube as normal videos; Instagram skips them.
+- YouTube: category Education, language Hindi, "made for kids" on for kids
+  stories and rhymes, privacy from `config.yaml` (default **private**) or `--privacy`.
+  Long videos also get the title card as their thumbnail.
+- Each real post is added to `output/published.csv` (time, video, platform, link).
+
+### Secrets: what to set
+
+Secrets are **never** committed (`.gitignore` blocks `client_secret*.json` and
+`*token*.json`). Put them in **Codespaces secrets** (GitHub > your profile >
+Settings > Codespaces > Secrets) or **repository secrets** (repository >
+Settings > Secrets and variables > Actions).
+
+| Secret | Used for | Where it comes from |
+|--------|----------|---------------------|
+| `YT_CLIENT_SECRET_JSON` | YouTube | the whole content of `client_secret.json` (step 4 below) |
+| `YT_TOKEN_JSON` | YouTube | printed by `python -m harmis.publish_youtube --auth` (step 7) |
+| `IG_USER_ID` | Instagram | your Instagram professional account id (Instagram step 7) |
+| `IG_ACCESS_TOKEN` | Instagram | long-lived token (Instagram step 6) |
+| `META_APP_ID`, `META_APP_SECRET` | Instagram token refresh | Meta app > App settings > Basic |
+| `GITHUB_TOKEN` | Instagram (temporary video link) | already there in GitHub Actions; in Codespaces it is set automatically, or make a fine-grained token with "Contents: read and write" for this repository |
+| `GEMINI_API_KEY` | better captions (optional) | <https://aistudio.google.com/apikey> |
+
+Install the YouTube packages once: `pip install -r requirements-publish.txt`.
+
+### YouTube setup (one time, about 15 minutes)
+
+1. Go to <https://console.cloud.google.com/> and sign in with the Google account
+   that owns your YouTube channel. Click the project menu at the top, then
+   **New project**. Name it, for example "harmis", and click **Create**.
+2. Open **APIs & Services > Library**, search for **YouTube Data API v3**, and
+   click **Enable**.
+3. Open **APIs & Services > OAuth consent screen** (also called **Google Auth Platform**):
+   - User type: **External**. Fill in the app name, your email, and the developer email.
+   - **Audience / Test users**: add your own Gmail address. Leave the app in **Testing**.
+4. Open **APIs & Services > Credentials > Create credentials > OAuth client ID**:
+   - Application type: **Desktop app**. Click **Create**, then **Download JSON**.
+   - Save it as `client_secret.json` in the project folder (it is git-ignored),
+     or paste its content into the secret `YT_CLIENT_SECRET_JSON`.
+5. `pip install -r requirements-publish.txt`
+6. Run `python -m harmis.publish_youtube --auth`.
+7. Open the link it prints and sign in. The app is unverified, so Google warns you:
+   click **Advanced > Go to harmis (unsafe)** (it is your own app), then **Allow**.
+   The browser then goes to an address starting with `http://localhost:8080/`; the
+   page may not load, which is fine. Copy the **whole address** and paste it into
+   the terminal. HARMIS saves the token and prints it: save it as the secret `YT_TOKEN_JSON`.
+8. Test: `python -m harmis.publish --video output/<file>.mp4 --to youtube --dry-run`, then without `--dry-run`.
+
+**Good to know:**
+- **Private lock:** YouTube locks videos uploaded through a new, unverified
+  project as **private**, even if you ask for public. HARMIS tells you when this
+  can happen. Make the video public by hand in YouTube Studio, or fill in Google's
+  YouTube API audit form so later uploads keep the privacy you choose.
+- **Quota:** the free quota is about 6 uploads a day.
+- **Thumbnails:** custom thumbnails need a phone-verified channel (YouTube Studio >
+  Settings > Channel > Feature eligibility).
+- **Expired sign-in:** while the app is in "Testing", Google may ask you to sign in
+  again after 7 days. Run `--auth` again and update `YT_TOKEN_JSON`.
+
+### Instagram setup (one time, about 20 minutes)
+
+1. In the Instagram app: **Settings > Account type and tools > Switch to professional
+   account**, and choose **Creator** (or Business).
+2. Create a **Facebook Page** (facebook.com > Pages > Create new Page), if you do not have one.
+3. Link them: Instagram **Settings > Accounts Center**, add your Facebook account,
+   and connect the Instagram account to the Page (or do it from the Page:
+   Settings > Linked accounts > Instagram).
+4. Go to <https://developers.facebook.com/>, click **My Apps > Create app**, choose
+   the use case for managing Instagram content / **Business** type, and create it.
+   In the app, add the **Instagram** product (Instagram API with Facebook Login).
+5. Open **Tools > Graph API Explorer**, select your app, and click **Generate Access Token**
+   with these permissions: `instagram_basic`, `instagram_content_publish`,
+   `pages_show_list`, `pages_read_engagement`, `business_management`. Allow access
+   for your Page and Instagram account.
+6. Make the token **long-lived** (60 days): open **Tools > Access Token Debugger**,
+   paste the token, and click **Extend Access Token**. Save the new token as
+   `IG_ACCESS_TOKEN`.
+7. Find your **IG_USER_ID**: in the Graph API Explorer, request
+   `me/accounts?fields=instagram_business_account{id,username}`. The `id` inside
+   `instagram_business_account` is your `IG_USER_ID`.
+8. Check: `python -m harmis.publish_instagram --check` should print your username.
+9. Test: `python -m harmis.publish --video output/<short file>.mp4 --to instagram --dry-run`,
+   then without `--dry-run`.
+
+**Good to know:**
+- **Temporary public link:** Instagram must download the video from a public
+  address. HARMIS uploads it for a moment as a GitHub Release asset on this public
+  repository and deletes it right after posting, even if posting fails.
+- **Token renewal:** the token lasts 60 days. Renew it before then with
+  `python -m harmis.publish_instagram --refresh-token` (needs `META_APP_ID` and
+  `META_APP_SECRET`) and save the new token as `IG_ACCESS_TOKEN`.
+- **Limits:** about 50 posts per day through the API.
+
 ## Settings: `config.yaml`
 
 Change these without touching the code:
@@ -328,6 +440,7 @@ Change these without touching the code:
 - `styles`: the words each art style adds to prompts
 - `safety`: kid-safe words added to prompts, words that are removed, negative prompt
 - `genres`: per genre: art style, narrator character, narrator voice, default scene and mood
+- `publish`: YouTube privacy, category and language; Instagram API settings; hashtag lists
 
 ## Built-in stories
 
@@ -421,4 +534,3 @@ videos made with it commercially (for example monetised YouTube).
   instead. Short rhymes are sung twice. If a long story is outside 5–7 minutes,
   the log says so (the video is still made).
 - The font is **Noto Sans Devanagari** (SIL Open Font License, see `harmis/fonts/OFL.txt`).
-- Uploading to YouTube or Instagram is not part of this phase.

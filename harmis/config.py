@@ -36,6 +36,14 @@ DEFAULTS = {
                         "delay_seconds": 5, "backoff_seconds": 20},
     },
     "background_removal": {"rembg_model": "u2net"},
+    "publish": {
+        "youtube": {"privacy": "private", "category_id": "27", "language": "hi", "thumbnail_for_long": True},
+        "instagram": {"graph_api": "https://graph.facebook.com/v21.0", "share_to_feed": True,
+                      "poll_seconds": 10, "max_wait_seconds": 900},
+        "github": {"api": "https://api.github.com", "uploads": "https://uploads.github.com"},
+        "hashtags": {"kids_story": ["#hindikahani", "#moralstories", "#kidsstories"], "always": ["#hindi"],
+                     "shorts": ["#shorts"], "reels": ["#reels"]},
+    },
     "styles": {
         "storybook": "children's storybook illustration, soft watercolour painting, warm colours",
         "3d_cartoon": "3D animated movie style render, cute stylised proportions, soft lighting, vibrant colours",

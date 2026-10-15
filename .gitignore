@@ -6,3 +6,8 @@ __pycache__/
 # Generated pictures in harmis/assets ARE committed (made once, reused forever),
 # for example by the prepare-pictures GitHub Actions workflow.
 .venv312/
+
+# Secrets: never commit these
+client_secret*.json
+*token*.json
+.env
