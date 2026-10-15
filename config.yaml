@@ -157,7 +157,10 @@ genres:
 publish:
   channel_name: Kahani Khazana   # used in descriptions, captions and tags
   youtube:
-    privacy: private          # private | unlisted | public
+    # Privacy of new uploads (YouTube "privacyStatus"): private | unlisted | public
+    # Keep "private" until Google approves the YouTube API audit; then change to:
+    #   privacy: public
+    privacy: private
     category_id: "27"         # 27 = Education
     language: hi
     thumbnail_for_long: true  # upload a custom thumbnail (title card) for long videos

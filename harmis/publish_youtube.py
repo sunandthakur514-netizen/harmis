@@ -105,6 +105,15 @@ def authorize():
           "with this value (keep it private!):\n\n" + token)
 
 
+def privacy_status(override=None):
+    """--privacy, else config.yaml (publish.youtube.privacy, or privacyStatus), default private."""
+    settings = CONFIG["publish"]["youtube"]
+    value = str(override or settings.get("privacyStatus") or settings.get("privacy") or "private").lower()
+    if value not in ("private", "unlisted", "public"):
+        raise ValueError(f"YouTube privacy must be private, unlisted or public (config.yaml says '{value}')")
+    return value
+
+
 def build_request_body(captions, genre, privacy=None):
     """The video details sent to YouTube."""
     settings = CONFIG["publish"]["youtube"]
@@ -125,7 +134,7 @@ def build_request_body(captions, genre, privacy=None):
             "defaultAudioLanguage": settings.get("language", "hi"),
         },
         "status": {
-            "privacyStatus": privacy or settings.get("privacy", "private"),
+            "privacyStatus": privacy_status(privacy),
             "selfDeclaredMadeForKids": genre in KIDS_GENRES,
             "embeddable": True,
         },

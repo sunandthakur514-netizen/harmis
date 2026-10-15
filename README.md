@@ -386,7 +386,10 @@ Install the YouTube packages once: `pip install -r requirements-publish.txt`.
 - **Private lock:** YouTube locks videos uploaded through a new, unverified
   project as **private**, even if you ask for public. HARMIS tells you when this
   can happen. Make the video public by hand in YouTube Studio, or fill in Google's
-  YouTube API audit form so later uploads keep the privacy you choose.
+  YouTube API audit form so later uploads keep the privacy you choose. For the
+  audit, use [PRIVACY.md](PRIVACY.md) and [TERMS.md](TERMS.md) (their GitHub
+  links) as the privacy policy and terms of service. After approval, set
+  `privacy: public` under `publish: youtube:` in `config.yaml`.
 - **Quota:** the free quota is about 6 uploads a day.
 - **Thumbnails:** custom thumbnails need a phone-verified channel (YouTube Studio >
   Settings > Channel > Feature eligibility).
