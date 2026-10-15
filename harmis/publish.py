@@ -51,7 +51,7 @@ def main():
     parser.add_argument("--to", default="youtube", help="youtube, instagram or youtube,instagram")
     parser.add_argument("--dry-run", action="store_true", help="print everything, post nothing")
     parser.add_argument("--privacy", choices=["private", "unlisted", "public"],
-                        help="YouTube privacy (default: config.yaml, normally private)")
+                        help="YouTube privacy (default: config.yaml, normally public)")
     parser.add_argument("--remake-captions", action="store_true", help="make <video>.json again")
     args = parser.parse_args()
 

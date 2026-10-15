@@ -79,6 +79,12 @@ def credentials():
     if not creds.valid:
         if creds.refresh_token:
             creds.refresh(Request())
+            try:  # keep the fresh token for next time; never fail an upload over this
+                if not os.environ.get("YT_TOKEN_JSON"):
+                    with open(TOKEN_FILE, "w", encoding="utf-8") as file:
+                        file.write(creds.to_json())
+            except OSError:
+                pass
         else:
             raise YouTubeSetupError("The YouTube token has expired and cannot be refreshed: run --auth again.")
     return creds

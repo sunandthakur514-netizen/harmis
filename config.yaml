@@ -158,9 +158,9 @@ publish:
   channel_name: Kahani Khazana   # used in descriptions, captions and tags
   youtube:
     # Privacy of new uploads (YouTube "privacyStatus"): private | unlisted | public
-    # Keep "private" until Google approves the YouTube API audit; then change to:
-    #   privacy: public
-    privacy: private
+    # Until Google approves the YouTube API audit, YouTube itself keeps API uploads
+    # private anyway; after approval they go public automatically.
+    privacy: public
     category_id: "27"         # 27 = Education
     language: hi
     thumbnail_for_long: true  # upload a custom thumbnail (title card) for long videos
@@ -189,3 +189,16 @@ publish:
     always: ["#KahaniKhazana", "#hindi"]
     shorts: ["#shorts"]       # added to YouTube Shorts
     reels: ["#reels", "#reelsindia"]   # added to Instagram Reels
+
+# ---------------------------------------------------------------------------
+# Daily automation (.github/workflows/daily.yml): 06:30 and 18:30 IST make a
+# short video, 12:30 IST a long one. Each list is used in order, one story per
+# run, and starts again from the top when it is used up (position kept in
+# state/daily.json). Horror is left out because the channel is for kids.
+# ---------------------------------------------------------------------------
+daily:
+  lang: hindi
+  style: 3d_cartoon
+  short: [monkey_crocodile, birbal_khichdi, chham_chham_baarish, tenali_thieves,
+          gali_cricket, talkative_tortoise, diwali_mela, dadi_smartphone]
+  long: [sher_khargosh, birbal_lakdi]

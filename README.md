@@ -338,7 +338,7 @@ python -m harmis.publish --video output/2026-10-15_kids_story_hindi.mp4 --to you
 - Short videos go to YouTube as **Shorts** and to Instagram as **Reels**. Long
   videos go to YouTube as normal videos; Instagram skips them.
 - YouTube: category Education, language Hindi, "made for kids" on for kids
-  stories and rhymes, privacy from `config.yaml` (default **private**) or `--privacy`.
+  stories and rhymes, privacy from `config.yaml` (default **public**) or `--privacy`.
   Long videos also get the title card as their thumbnail.
 - Each real post is added to `output/published.csv` (time, video, platform, link). Leave out `--video` (or give a folder) to publish the newest video that has its `.json`.
 
@@ -390,13 +390,46 @@ Install the YouTube packages once: `pip install -r requirements-publish.txt`.
   can happen. Make the video public by hand in YouTube Studio, or fill in Google's
   YouTube API audit form so later uploads keep the privacy you choose. For the
   audit, use [PRIVACY.md](PRIVACY.md) and [TERMS.md](TERMS.md) (their GitHub
-  links) as the privacy policy and terms of service. After approval, set
-  `privacy: public` under `publish: youtube:` in `config.yaml`.
+  links) as the privacy policy and terms of service. `config.yaml` already asks
+  for `privacy: public`, so after approval new uploads go public by themselves.
 - **Quota:** the free quota is about 6 uploads a day.
 - **Thumbnails:** custom thumbnails need a phone-verified channel (YouTube Studio >
   Settings > Channel > Feature eligibility).
 - **Expired sign-in:** while the app is in "Testing", Google may ask you to sign in
   again after 7 days. Run `--auth` again and update `YT_TOKEN_JSON`.
+
+### Daily automation – required secrets
+
+`.github/workflows/daily.yml` makes and uploads a video **3 times a day**, with no
+computer needed:
+
+| Time (IST) | Cron (UTC) | Video |
+|---|---|---|
+| 06:30 | `0 1 * * *` | short (Hindi, 3d_cartoon) |
+| 12:30 | `0 7 * * *` | long, 5–7 minutes (Hindi, 3d_cartoon) |
+| 18:30 | `0 13 * * *` | short (Hindi, 3d_cartoon) |
+
+Each run picks the next story from the `daily:` lists in `config.yaml` (no repeats
+until a list is used up), makes any missing pictures with `local_sd`, renders the
+video, uploads it with `python -m harmis.publish --to youtube`, and commits the
+rotation (`state/daily.json`) and new pictures back to the repo. The mp4 is also
+kept as a run artifact for 3 days so you can check it. Start a test run any time
+from **Actions → daily → Run workflow** (untick "Upload to YouTube" to only make
+the video).
+
+Add these under **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Secret | Value |
+|---|---|
+| `YT_CLIENT_SECRET_JSON` | the whole contents of your `client_secret.json` |
+| `YT_TOKEN_JSON` | the token printed by `python -m harmis.publish_youtube --auth` |
+
+The workflow writes them to `client_secret.json` and `~/.config/harmis/youtube_token.json`
+only while it runs (never printed, deleted at the end). An expired access token
+is refreshed automatically. **Important:** while your Google Cloud OAuth app is
+in "Testing", Google ends the sign-in after 7 days and the uploads stop. Set it to
+**In production** (Google Cloud → APIs & Services → OAuth consent screen →
+Publish app), then run `--auth` once more and update `YT_TOKEN_JSON`.
 
 ### Instagram setup (one time, about 20 minutes)
 
