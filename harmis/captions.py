@@ -2,9 +2,11 @@
 
     python -m harmis.captions output/2026-10-15_kids_story_hindi.mp4
 
-Reads <video>.story.json (written by harmis.main) and saves <video>.json:
+Reads <video>.story.json (written by harmis.main), or the story title from an
+existing <video>.json, and saves <video>.json:
 
     {
+      "story_title": "...",           # the story's own title (always in the titles below)
       "title": "...",                 # <= 90 characters
       "description": "...",
       "hashtags": ["#hindikahani", ...],
@@ -28,6 +30,15 @@ from .config import CONFIG
 from .library import make_safe
 
 TITLE_MAX = 90
+REMOVED_TAGS = {"#harmis"}  # never used in public text (the channel tag is #KahaniKhazana)
+
+
+class CaptionsError(Exception):
+    """Not enough information to write captions. The message says what to do."""
+
+
+def channel_name():
+    return CONFIG["publish"].get("channel_name", "Kahani Khazana")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
@@ -43,19 +54,30 @@ SOURCE_WORDS = {"Panchatantra": "पंचतंत्र", "Jataka": "जात
 
 
 def story_meta(video_path):
-    """The story details saved next to the video, or a guess from the file name."""
-    meta_path = os.path.splitext(video_path)[0] + ".story.json"
-    if os.path.exists(meta_path):
-        with open(meta_path, encoding="utf-8") as file:
+    """The story details saved next to the video.
+
+    Uses <video>.story.json, or else the story title in an existing <video>.json.
+    Without either, it refuses instead of inventing a generic title.
+    """
+    stem = os.path.splitext(video_path)[0]
+    if os.path.exists(stem + ".story.json"):
+        with open(stem + ".story.json", encoding="utf-8") as file:
             return json.load(file)
-    # Older videos: output/<date>_<genre>_<lang>[_long][_2].mp4
-    name = os.path.basename(os.path.splitext(video_path)[0])
-    genre = next((g for g in GENRE_WORDS if f"_{g}_" in f"_{name}_"), "kids_story")
-    lang = next((l for l in ("hindi", "hinglish", "english") if f"_{l}" in name), "hindi")
-    print(f"[captions] No {os.path.basename(meta_path)}; guessing from the file name ({genre}, {lang}).")
-    return {"title": GENRE_WORDS[genre][0], "genre": genre, "lang": lang,
-            "format": "long" if "_long" in name else "short", "characters": [], "summary": "", "moral": "",
-            "source": "", "tagline": ""}
+    if os.path.exists(stem + ".json"):
+        with open(stem + ".json", encoding="utf-8") as file:
+            saved = json.load(file)
+        title = saved.get("story_title") or str(saved.get("title", "")).split(" | ")[0].replace("#shorts", "").strip()
+        if title:
+            print(f"[captions] No {os.path.basename(stem)}.story.json; using the story title from "
+                  f"{os.path.basename(stem)}.json: {title}")
+            return {"title": title, "genre": saved.get("genre", "kids_story"), "lang": saved.get("lang", "hindi"),
+                    "format": saved.get("format", "short"), "characters": [], "summary": "", "moral": "",
+                    "source": saved.get("source", ""), "tagline": ""}
+    raise CaptionsError(
+        f"No story details for {video_path}: neither {os.path.basename(stem)}.story.json nor a "
+        f"{os.path.basename(stem)}.json with a title exists. Make the video again with `python -m harmis.main` "
+        f"(it saves both), or create {os.path.basename(stem)}.json yourself with at least "
+        '{"story_title": "...", "genre": "kids_story", "format": "short"}.')
 
 
 def clean(text):
@@ -84,7 +106,7 @@ def hashtags_for(meta, platform):
     seen, result = set(), []
     for tag in tags:
         tag = "#" + re.sub(r"[^\w]", "", clean(tag).lstrip("#"), flags=re.UNICODE)
-        if len(tag) > 1 and tag.lower() not in seen:
+        if len(tag) > 1 and tag.lower() not in seen and tag.lower() not in REMOVED_TAGS:
             seen.add(tag.lower())
             result.append(tag)
     return result[:15] if platform == "youtube" else result[:30]
@@ -114,7 +136,7 @@ def template_captions(meta):
         parts.append(f"यह कहानी {source_hi or source} की लोककथा पर आधारित है। Based on a public-domain {source} folk tale.")
     if meta["genre"] == "horror":
         parts.append("13+ | हल्की डरावनी कहानी, बच्चों के लिए नहीं। Mildly spooky, for teens and adults.")
-    parts.append("कहानी पसंद आई? Like करें, Share करें और Subscribe करें! 🙏")
+    parts.append(f"कहानी पसंद आई? Like करें, Share करें और {channel_name()} को Subscribe करें! 🙏")
     description = "\n\n".join(parts)
     return {"title": title_line, "description": description}
 
@@ -124,7 +146,8 @@ def template_captions(meta):
 # ---------------------------------------------------------------------------
 def gemini_captions(meta, api_key):
     prompt = (
-        "Write YouTube/Instagram text for a short animated video for Indian families. "
+        f"Write YouTube/Instagram text for a short animated video on the channel '{channel_name()}' for Indian families. "
+        f"The title MUST contain the story title exactly: {meta['title']}. "
         "Mix Hindi (Devanagari) and simple English, friendly and kid-safe. "
         f"Never mention copyrighted characters, brands or other channels. Story details: "
         f"{json.dumps({k: meta.get(k) for k in ('title', 'genre', 'format', 'source', 'characters', 'summary', 'moral')}, ensure_ascii=False)}. "
@@ -165,28 +188,37 @@ def make_captions(video_path, use_ai=True, save=True):
     instagram_tags = hashtags_for(meta, "instagram")
     for tag in text.get("extra_hashtags", []):  # Gemini's ideas, after ours
         tag = "#" + re.sub(r"[^\w]", "", clean(tag).lstrip("#"), flags=re.UNICODE)
-        if len(tag) > 1 and tag.lower() not in {t.lower() for t in instagram_tags}:
+        if len(tag) > 1 and tag.lower() not in {t.lower() for t in instagram_tags} and tag.lower() not in REMOVED_TAGS:
             instagram_tags.append(tag)
     instagram_tags = instagram_tags[:30]
 
+    story_title = clean(meta["title"])
     title = text["title"]
-    description = text["description"]
+    if story_title and story_title not in title:  # the story title is always in the title
+        title = fit(f"{story_title} | {title}", TITLE_MAX)
+    description = strip_removed_tags(text["description"])
     youtube_title = title
     if meta.get("format") == "short" and "#shorts" not in title.lower():
         youtube_title = fit(title, TITLE_MAX - 8) + " #shorts"
+    caption = title + "\n\n" + description + "\n\n" + " ".join(instagram_tags)
+    if story_title and story_title not in caption:
+        caption = story_title + "\n\n" + caption
     captions = {
+        "story_title": story_title,
         "title": title,
         "description": description,
         "hashtags": youtube_tags,
         "made_with": source,
         "format": meta.get("format", "short"),
         "genre": meta["genre"],
+        "lang": meta.get("lang", "hindi"),
+        "source": meta.get("source", ""),
         "youtube": {
             "title": youtube_title,
             "description": fit(description + "\n\n" + " ".join(youtube_tags), 4900),
-            "tags": [t.lstrip("#") for t in youtube_tags],
+            "tags": [t.lstrip("#") for t in youtube_tags] + [channel_name()],
         },
-        "instagram": {"caption": fit(title + "\n\n" + description + "\n\n" + " ".join(instagram_tags), 2150)},
+        "instagram": {"caption": fit(caption, 2150)},
     }
     if save:
         path = os.path.splitext(video_path)[0] + ".json"
@@ -196,15 +228,44 @@ def make_captions(video_path, use_ai=True, save=True):
     return captions
 
 
+def strip_removed_tags(text):
+    for tag in REMOVED_TAGS:
+        text = re.sub(rf"\s*{re.escape(tag)}\b", "", text, flags=re.IGNORECASE)
+    return text
+
+
 def load_or_make(video_path):
+    """Captions from <video>.json (cleaned of removed tags), or make them now."""
     path = os.path.splitext(video_path)[0] + ".json"
-    if os.path.exists(path):
-        with open(path, encoding="utf-8") as file:
-            return json.load(file)
-    return make_captions(video_path)
+    if not os.path.exists(path):
+        return make_captions(video_path)
+    with open(path, encoding="utf-8") as file:
+        caps = json.load(file)
+    first = str(caps.get("title", "")).split(" | ")[0].strip()
+    if not caps.get("story_title") and first in {hindi for hindi, _ in GENRE_WORDS.values()}:
+        raise CaptionsError(
+            f"{path} has only a generic title ('{first}'), not the story's title. Put the real title in it as "
+            '"story_title": "..." and run with --remake-captions, or make the video again with `python -m harmis.main`.')
+    removed = {t.lstrip("#") for t in REMOVED_TAGS}
+    cleaned = json.loads(json.dumps(caps))
+    cleaned["hashtags"] = [t for t in caps.get("hashtags", []) if t.lower() not in REMOVED_TAGS]
+    cleaned["description"] = strip_removed_tags(caps.get("description", ""))
+    if "youtube" in caps:
+        cleaned["youtube"]["tags"] = [t for t in caps["youtube"].get("tags", []) if t.lower() not in removed]
+        cleaned["youtube"]["description"] = strip_removed_tags(caps["youtube"].get("description", ""))
+    if "instagram" in caps:
+        cleaned["instagram"]["caption"] = strip_removed_tags(caps["instagram"].get("caption", ""))
+    if cleaned != caps:
+        with open(path, "w", encoding="utf-8") as file:
+            json.dump(cleaned, file, ensure_ascii=False, indent=2)
+        print(f"[captions] Removed old tags from {path}")
+    return cleaned
 
 
 if __name__ == "__main__":
     for video in sys.argv[1:]:
-        caps = make_captions(video)
+        try:
+            caps = make_captions(video)
+        except CaptionsError as error:
+            sys.exit(f"[captions] {error}")
         print(json.dumps(caps, ensure_ascii=False, indent=2))

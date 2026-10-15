@@ -155,6 +155,7 @@ genres:
 # from environment variables / GitHub or Codespaces secrets (see README).
 # ---------------------------------------------------------------------------
 publish:
+  channel_name: Kahani Khazana   # used in descriptions, captions and tags
   youtube:
     privacy: private          # private | unlisted | public
     category_id: "27"         # 27 = Education
@@ -182,6 +183,6 @@ publish:
       Jataka: ["#jatakakatha", "#jatakatales"]
       Akbar-Birbal: ["#akbarbirbal", "#birbal"]
       Tenali Raman: ["#tenaliraman", "#tenalirama"]
-    always: ["#harmis", "#hindi"]
+    always: ["#KahaniKhazana", "#hindi"]
     shorts: ["#shorts"]       # added to YouTube Shorts
     reels: ["#reels", "#reelsindia"]   # added to Instagram Reels

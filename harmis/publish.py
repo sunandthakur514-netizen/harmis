@@ -2,6 +2,7 @@
 
     python -m harmis.publish --video output/2026-10-15_kids_story_hindi.mp4 --to youtube,instagram
     python -m harmis.publish --video output/....mp4 --to youtube --dry-run   # show everything, post nothing
+    python -m harmis.publish --to youtube --dry-run      # newest video in output/ that has its .json
 
 Captions (title, description, hashtags) come from <video>.json, which is made
 automatically if it is missing (see harmis/captions.py). Every real post is
@@ -20,6 +21,16 @@ from .config import CONFIG
 PLATFORMS = ("youtube", "instagram")
 
 
+def newest_video(folder):
+    """The newest .mp4 in a folder that has a matching <video>.json (its captions)."""
+    videos = [os.path.join(folder, name) for name in os.listdir(folder) if name.endswith(".mp4")]
+    videos = [v for v in videos if os.path.exists(os.path.splitext(v)[0] + ".json")]
+    if not videos:
+        sys.exit(f"[publish] No video with a matching .json in {folder}. Make one with `python -m harmis.main`, "
+                 "or give --video <file>.mp4.")
+    return max(videos, key=os.path.getmtime)
+
+
 def log_post(video, platform, result, privacy=""):
     path = os.path.join(CONFIG["defaults"].get("output_dir", "output"), "published.csv")
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
@@ -35,7 +46,8 @@ def log_post(video, platform, result, privacy=""):
 
 def main():
     parser = argparse.ArgumentParser(description="Publish a HARMIS video to YouTube / Instagram.")
-    parser.add_argument("--video", required=True, help="the mp4 to publish")
+    parser.add_argument("--video", help="the mp4 to publish, or a folder (default: the newest video "
+                                         "with a matching .json in the output folder)")
     parser.add_argument("--to", default="youtube", help="youtube, instagram or youtube,instagram")
     parser.add_argument("--dry-run", action="store_true", help="print everything, post nothing")
     parser.add_argument("--privacy", choices=["private", "unlisted", "public"],
@@ -43,6 +55,13 @@ def main():
     parser.add_argument("--remake-captions", action="store_true", help="make <video>.json again")
     args = parser.parse_args()
 
+    output_dir = CONFIG["defaults"].get("output_dir", "output")
+    if args.video is None or os.path.isdir(args.video):
+        folder = args.video or output_dir
+        if not os.path.isdir(folder):
+            sys.exit(f"[publish] Folder {folder} does not exist; give --video <file>.mp4.")
+        args.video = newest_video(folder)
+        print(f"[publish] Picked the newest video: {args.video}")
     if not os.path.exists(args.video):
         sys.exit(f"[publish] {args.video} does not exist")
     targets = [t.strip().lower() for t in args.to.split(",") if t.strip()]
@@ -50,8 +69,11 @@ def main():
         if target not in PLATFORMS:
             sys.exit(f"[publish] Unknown platform '{target}'. Choose from: {', '.join(PLATFORMS)}")
 
-    caps = (captions_module.make_captions(args.video) if args.remake_captions
-            else captions_module.load_or_make(args.video))
+    try:
+        caps = (captions_module.make_captions(args.video) if args.remake_captions
+                else captions_module.load_or_make(args.video))
+    except captions_module.CaptionsError as error:
+        sys.exit(f"[publish] {error}")
     fmt, genre = caps.get("format", "short"), caps.get("genre", "kids_story")
     print(f"[publish] {args.video}: {fmt} {genre} video, title: {caps['title']}")
 

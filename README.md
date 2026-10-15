@@ -321,7 +321,7 @@ Every video gets captions automatically: `harmis.main` saves `<video>.story.json
 (what the story is about) and `<video>.json` with a title (max 90 characters), a
 description and hashtags in Hindi and English. Gemini writes them if
 `GEMINI_API_KEY` is set; otherwise templates use the story's title, moral,
-characters and genre plus the hashtag lists under `publish: hashtags:` in
+characters and genre plus the hashtag lists under `publish: hashtags:` (channel tag `#KahaniKhazana`, channel name under `publish: channel_name:`) in
 `config.yaml`. Shorts get `#shorts`, Reels get `#reels`, and copyrighted names
 are always removed. You can make them again with `python -m harmis.captions <video>.mp4`.
 
@@ -338,7 +338,7 @@ python -m harmis.publish --video output/2026-10-15_kids_story_hindi.mp4 --to you
 - YouTube: category Education, language Hindi, "made for kids" on for kids
   stories and rhymes, privacy from `config.yaml` (default **private**) or `--privacy`.
   Long videos also get the title card as their thumbnail.
-- Each real post is added to `output/published.csv` (time, video, platform, link).
+- Each real post is added to `output/published.csv` (time, video, platform, link). Leave out `--video` (or give a folder) to publish the newest video that has its `.json`.
 
 ### Secrets: what to set
 
