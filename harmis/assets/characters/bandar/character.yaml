@@ -11,3 +11,8 @@ seed: 1105              # fixed seed so the picture comes out the same
 description: >-           # fixed look, added to every image prompt
   a small playful brown monkey with a cream coloured face, big friendly eyes and a long
   curly tail, standing upright
+# Mouth and eyes position as fractions of the picture: [x, y, width, height].
+# Found automatically (default for an animal). Edit the numbers if the mouth moves in the wrong place
+# (then delete the *_mouth_*.png / *_blink.png / *_variants.json files to remake them).
+mouth_box: [0.42, 0.22, 0.16, 0.045]
+eyes_box: [0.32, 0.13, 0.36, 0.06]

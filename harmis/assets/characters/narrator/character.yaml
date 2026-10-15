@@ -11,3 +11,8 @@ seed: 1117              # fixed seed so the picture comes out the same
 description: >-           # fixed look, added to every image prompt
   a kind Indian woman narrator in her 40s with a warm smile, wearing a bright orange and
   pink saree, holding an open book
+# Mouth and eyes position as fractions of the picture: [x, y, width, height].
+# Found automatically (default for a human). Edit the numbers if the mouth moves in the wrong place
+# (then delete the *_mouth_*.png / *_blink.png / *_variants.json files to remake them).
+mouth_box: [0.44, 0.19, 0.12, 0.035]
+eyes_box: [0.35, 0.125, 0.3, 0.05]
