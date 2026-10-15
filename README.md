@@ -1,5 +1,7 @@
 # HARMIS
 
+Privacy Policy: [PRIVACY.md](PRIVACY.md) · Terms of Service: [TERMS.md](TERMS.md) · This app uses [YouTube API Services](https://www.youtube.com/t/terms) · [Google Privacy Policy](https://policies.google.com/privacy)
+
 Automated 2D video maker for YouTube and Instagram, made for **Indian kids and families**.
 
 Give it a genre (or a story), a language and an art style. It makes **one video**
