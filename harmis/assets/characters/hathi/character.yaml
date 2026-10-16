@@ -1,0 +1,12 @@
+# The elephant (Panchatantra / Jataka)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Hathi              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: हाथी
+  english: Elephant
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+type: animal             # human / animal (used for the default mouth position)
+seed: 1206              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a big gentle grey Indian elephant with small tusks, large ears and a long trunk

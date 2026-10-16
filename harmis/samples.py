@@ -359,3 +359,9 @@ SAMPLES = {
         },
     ],
 }
+
+# More Hindi-only short stories and rhymes live in samples_more.py.
+from .samples_more import MORE_SAMPLES  # noqa: E402
+
+for _genre, _stories in MORE_SAMPLES.items():
+    SAMPLES.setdefault(_genre, []).extend(_stories)

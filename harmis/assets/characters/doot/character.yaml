@@ -1,0 +1,12 @@
+# The Persian king's messenger (Akbar-Birbal stories)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Doot              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: दूत
+  english: Messenger
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+type: human             # human / animal (used for the default mouth position)
+seed: 1219              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a Persian royal messenger with a tall turban, a long embroidered coat and a pointed beard, holding a scroll

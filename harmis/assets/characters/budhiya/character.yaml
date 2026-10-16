@@ -1,0 +1,12 @@
+# The old village woman (folk tales)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Budhiya              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: बुढ़िया
+  english: Old Woman
+gender: f               # m / f (picks the voice)
+age: old            # child / adult / old
+type: human             # human / animal (used for the default mouth position)
+seed: 1217              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  an old Indian village woman with grey hair in a bun, a simple cotton saree and a round face

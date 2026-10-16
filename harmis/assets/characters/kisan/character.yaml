@@ -1,0 +1,12 @@
+# The honest farmer (folk tales)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Kisan              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: किसान
+  english: Farmer
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+type: human             # human / animal (used for the default mouth position)
+seed: 1220              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a hard-working Indian farmer with a moustache, a white kurta and dhoti, a green turban, holding a small bundle

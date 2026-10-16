@@ -1,0 +1,12 @@
+# The clever crow (Panchatantra / folk tales)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Kauwa              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: कौआ
+  english: Crow
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+type: animal             # human / animal (used for the default mouth position)
+seed: 1201              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a clever black crow with a grey neck, shiny bright eyes and a small curved beak, standing on two legs

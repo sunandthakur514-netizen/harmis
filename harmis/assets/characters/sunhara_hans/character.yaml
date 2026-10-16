@@ -1,0 +1,12 @@
+# The golden swan (Jataka)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Sunhara Hans              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: सुनहरा हंस
+  english: Golden Swan
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+type: animal             # human / animal (used for the default mouth position)
+seed: 1216              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a graceful swan with glowing golden feathers, a gentle face and an orange beak

@@ -171,3 +171,9 @@ LONG_SAMPLES = {
         },
     ],
 }
+
+# More long stories live in samples_long_more.py.
+from .samples_long_more import MORE_LONG_SAMPLES  # noqa: E402
+
+for _genre, _stories in MORE_LONG_SAMPLES.items():
+    LONG_SAMPLES.setdefault(_genre, []).extend(_stories)

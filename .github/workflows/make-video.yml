@@ -13,9 +13,13 @@ on:
       story:
         description: Built-in story
         type: choice
-        options: [birbal_khichdi, monkey_crocodile, tenali_thieves, talkative_tortoise,
-                  chham_chham_baarish, diwali_mela, gali_cricket, dadi_smartphone,
-                  haveli_paayal, aakhri_bus, sher_khargosh, birbal_lakdi]
+        options: [monkey_crocodile, birbal_khichdi, tenali_thieves, talkative_tortoise, pyasa_kauwa,
+                  kabutar_jaal, bagula_kekda, chuhe_hathi, bandar_mali, teetar_bado_ka_aadar,
+                  birbal_kaue_ginti, birbal_lakeer, birbal_kuan, tenali_billi, tenali_kuan_shaadi,
+                  tenali_hara_ghoda, chham_chham_baarish, diwali_mela, sooraj_dada, titli_rani,
+                  daant_chamkao, phalon_ki_tokri, ginti_ke_tare, indradhanush, gali_cricket, dadi_smartphone,
+                  haveli_paayal, aakhri_bus, sher_khargosh, birbal_lakdi, kauwa_saanp, chidiya_hathi,
+                  sone_ka_hans, sone_ka_hiran, birbal_mom_ka_sher, tenali_vidwan]
       lang:
         description: Language (long stories are Hindi only)
         type: choice

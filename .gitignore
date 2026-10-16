@@ -1,4 +1,6 @@
-output/
+# Finished videos are not committed, except the log of every upload (stories are never repeated)
+output/*
+!output/published.csv
 __pycache__/
 *.pyc
 .venv/

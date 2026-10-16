@@ -12,6 +12,7 @@ logged in output/published.csv.
 import argparse
 import csv
 import datetime
+import json
 import os
 import sys
 
@@ -31,17 +32,78 @@ def newest_video(folder):
     return max(videos, key=os.path.getmtime)
 
 
-def log_post(video, platform, result, privacy=""):
-    path = os.path.join(CONFIG["defaults"].get("output_dir", "output"), "published.csv")
+LOG_FIELDS = ["time", "video", "platform", "id", "url", "privacy", "story_id", "title", "format"]
+
+
+def log_path():
+    return os.path.join(CONFIG["defaults"].get("output_dir", "output"), "published.csv")
+
+
+def read_log():
+    """Every row of output/published.csv (older files without the newer columns work too)."""
+    try:
+        with open(log_path(), newline="", encoding="utf-8") as file:
+            return list(csv.DictReader(file))
+    except OSError:
+        return []
+
+
+def log_post(video, platform, result, privacy="", caps=None):
+    """Add one real post to output/published.csv (committed by the daily workflow)."""
+    path = log_path()
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    new = not os.path.exists(path)
-    with open(path, "a", newline="", encoding="utf-8") as file:
-        writer = csv.writer(file)
-        if new:
-            writer.writerow(["time", "video", "platform", "id", "url", "privacy"])
-        writer.writerow([datetime.datetime.now().isoformat(timespec="seconds"), video, platform,
-                         result.get("id", ""), result.get("url", ""), privacy])
+    rows = read_log()
+    caps = caps or {}
+    rows.append({"time": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
+                 "video": os.path.basename(video), "platform": platform, "id": result.get("id", ""),
+                 "url": result.get("url", ""), "privacy": privacy, "story_id": caps.get("story_id", ""),
+                 "title": caps.get("story_title", ""), "format": caps.get("format", "")})
+    with open(path, "w", newline="", encoding="utf-8") as file:  # rewritten so old files get the new columns
+        writer = csv.DictWriter(file, fieldnames=LOG_FIELDS, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
     print(f"[publish] Logged in {path}")
+
+
+def story_id_of(video):
+    """The built-in story id saved next to the video (<video>.story.json), or ""."""
+    try:
+        with open(os.path.splitext(video)[0] + ".story.json", encoding="utf-8") as file:
+            return json.load(file).get("story_id", "")
+    except (OSError, ValueError):
+        return ""
+
+
+def publish_video(video, targets, privacy=None, dry_run=False, remake_captions=False):
+    """Post one video. Returns the number of platforms that failed."""
+    try:
+        caps = (captions_module.make_captions(video) if remake_captions
+                else captions_module.load_or_make(video))
+    except captions_module.CaptionsError as error:
+        print(f"[publish] {error}")
+        return len(targets)
+    caps = {**caps, "story_id": caps.get("story_id") or story_id_of(video)}
+    fmt, genre = caps.get("format", "short"), caps.get("genre", "kids_story")
+    print(f"[publish] {video}: {fmt} {genre} video, title: {caps['title']}")
+
+    failed = 0
+    for target in targets:
+        try:
+            if target == "youtube":
+                from . import publish_youtube
+                result = publish_youtube.upload(video, caps, genre, fmt, privacy, dry_run)
+            else:
+                from . import publish_instagram
+                if fmt != "short":
+                    print("[publish] Skipping Instagram: Reels are for short vertical videos only.")
+                    continue
+                result = publish_instagram.publish_reel(video, caps["instagram"]["caption"], fmt, dry_run)
+            if not dry_run:
+                log_post(video, target, result, result.get("privacy", ""), caps)
+        except Exception as error:
+            failed += 1
+            print(f"[publish] {target} FAILED: {error}")
+    return failed
 
 
 def main():
@@ -69,31 +131,7 @@ def main():
         if target not in PLATFORMS:
             sys.exit(f"[publish] Unknown platform '{target}'. Choose from: {', '.join(PLATFORMS)}")
 
-    try:
-        caps = (captions_module.make_captions(args.video) if args.remake_captions
-                else captions_module.load_or_make(args.video))
-    except captions_module.CaptionsError as error:
-        sys.exit(f"[publish] {error}")
-    fmt, genre = caps.get("format", "short"), caps.get("genre", "kids_story")
-    print(f"[publish] {args.video}: {fmt} {genre} video, title: {caps['title']}")
-
-    failed = 0
-    for target in targets:
-        try:
-            if target == "youtube":
-                from . import publish_youtube
-                result = publish_youtube.upload(args.video, caps, genre, fmt, args.privacy, args.dry_run)
-            else:
-                from . import publish_instagram
-                if fmt != "short":
-                    print("[publish] Skipping Instagram: Reels are for short vertical videos only.")
-                    continue
-                result = publish_instagram.publish_reel(args.video, caps["instagram"]["caption"], fmt, args.dry_run)
-            if not args.dry_run:
-                log_post(args.video, target, result, result.get("privacy", ""))
-        except Exception as error:
-            failed += 1
-            print(f"[publish] {target} FAILED: {error}")
+    failed = publish_video(args.video, targets, args.privacy, args.dry_run, args.remake_captions)
     if args.dry_run:
         print("[publish] Dry run finished: nothing was posted.")
     sys.exit(1 if failed else 0)

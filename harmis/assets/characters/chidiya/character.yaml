@@ -1,0 +1,12 @@
+# The little sparrow (Panchatantra)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Chidiya              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: चिड़िया
+  english: Sparrow
+gender: f               # m / f (picks the voice)
+age: adult            # child / adult / old
+type: animal             # human / animal (used for the default mouth position)
+seed: 1212              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a small brown house sparrow with a soft cream chest, tiny beak and big caring eyes

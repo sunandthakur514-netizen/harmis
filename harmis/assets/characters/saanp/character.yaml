@@ -1,0 +1,12 @@
+# The greedy snake (Panchatantra)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Saanp              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: साँप
+  english: Snake
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+type: animal             # human / animal (used for the default mouth position)
+seed: 1210              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a long green cartoon snake with yellow belly scales, big round eyes and a grumpy face, coiled up, not scary

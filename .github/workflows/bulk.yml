@@ -1,0 +1,184 @@
+# Make many videos at once and put them in the upload queue.
+#
+# Run it from the Actions tab: "bulk" -> "Run workflow". It
+#   1. plan:   picks stories that were never published and are not already queued
+#              (output/published.csv, state/daily.json, the "queue" release)
+#   2. make:   one job per story, up to 5 at the same time; each makes the
+#              pictures (local_sd), renders the video (Hindi, 3d_cartoon) and adds
+#              the .mp4 + .json captions to the GitHub Release "queue"
+#   3. commit: commits the new pictures so later videos reuse them
+# daily.yml then uploads the queued videos to YouTube, 2 per run, at most
+# daily.max_uploads_per_day (config.yaml) per day. Nothing is uploaded here.
+name: bulk
+
+on:
+  workflow_dispatch:
+    inputs:
+      shorts:
+        description: How many short videos
+        type: number
+        default: 15
+      longs:
+        description: How many long (5-7 minute) videos
+        type: number
+        default: 7
+
+permissions:
+  contents: write          # the "queue" release and the picture commit
+
+concurrency:
+  group: bulk
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.11"
+  HF_HUB_DISABLE_TELEMETRY: "1"
+  MODEL_CACHE_KEY: hf-sd-turbo-fp16-v1
+  REMBG_CACHE_KEY: rembg-u2net-v1
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      jobs: ${{ steps.plan.outputs.jobs }}
+      count: ${{ steps.plan.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install HARMIS (light, no torch needed to plan)
+        run: pip install -r requirements.txt
+      - name: Pick unpublished stories
+        id: plan
+        run: |
+          python -m harmis.daily plan --shorts "${{ inputs.shorts }}" --longs "${{ inputs.longs }}" > jobs.json
+          cat jobs.json
+          echo "jobs=$(cat jobs.json)" >> "$GITHUB_OUTPUT"
+          COUNT=$(python -c 'import json; print(len(json.load(open("jobs.json"))))')
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "### $COUNT videos to make" >> "$GITHUB_STEP_SUMMARY"
+          python -c 'import json; [print("-", j["format"] + ":", j["story"]) for j in json.load(open("jobs.json"))]' >> "$GITHUB_STEP_SUMMARY"
+      - name: Make sure the queue release exists
+        if: steps.plan.outputs.count != '0'
+        run: python -c "from harmis.upload_queue import Queue; Queue().release(create=True)"
+
+      # Download the models once here, so the parallel jobs only restore them.
+      - name: Cache Stable Diffusion Turbo model
+        if: steps.plan.outputs.count != '0'
+        id: model-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ env.MODEL_CACHE_KEY }}
+      - name: Download Stable Diffusion Turbo (first time only, ~2.5 GB)
+        if: steps.plan.outputs.count != '0' && steps.model-cache.outputs.cache-hit != 'true'
+        run: |
+          pip install huggingface_hub
+          python -c "from huggingface_hub import snapshot_download; snapshot_download('stabilityai/sd-turbo', allow_patterns=['*.json', '*.txt', '*.fp16.safetensors'])"
+      - name: Cache rembg model
+        if: steps.plan.outputs.count != '0'
+        id: rembg-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.u2net
+          key: ${{ env.REMBG_CACHE_KEY }}
+      - name: Download rembg model (first time only)
+        if: steps.plan.outputs.count != '0' && steps.rembg-cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/.u2net
+          curl -sSL -o ~/.u2net/u2net.onnx https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2net.onnx
+
+  make:
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false      # one failed video must not stop the others
+      max-parallel: 5
+      matrix:
+        job: ${{ fromJSON(needs.plan.outputs.jobs) }}
+    name: make ${{ matrix.job.format }} ${{ matrix.job.story }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-local-sd.txt
+      - name: Install system tools (ffmpeg, espeak-ng fallback voice)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng
+      - name: Install HARMIS + local_sd (CPU-only torch)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt -r requirements-local-sd.txt
+      - name: Restore Stable Diffusion Turbo model
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ env.MODEL_CACHE_KEY }}
+      - name: Restore rembg model
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.u2net
+          key: ${{ env.REMBG_CACHE_KEY }}
+      - name: Options
+        id: opts
+        run: |
+          LANG_=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("lang", "hindi"))')
+          STYLE=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("style", "3d_cartoon"))')
+          echo "args=--story ${{ matrix.job.story }} --format ${{ matrix.job.format }} --lang $LANG_ --style $STYLE --providers local_sd" >> "$GITHUB_OUTPUT"
+      - name: Make missing pictures (local_sd)
+        continue-on-error: true   # a failed picture is retried by main, or drawn as shapes
+        run: python -m harmis.prepare ${{ steps.opts.outputs.args }}
+      - name: Make the video
+        run: python -m harmis.main ${{ steps.opts.outputs.args }} --offline
+      - name: Add it to the upload queue
+        run: python -m harmis.upload_queue add $(ls -t output/*.mp4 | head -n 1)
+      - name: Collect the new pictures
+        if: always()
+        run: |
+          mkdir -p pictures
+          git ls-files --others --modified --exclude-standard harmis/assets | xargs -r cp --parents -t pictures/
+          find pictures -type f | head -50
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pictures-${{ matrix.job.story }}
+          path: pictures/
+          if-no-files-found: ignore
+          retention-days: 3
+
+  commit:
+    needs: [plan, make]
+    if: always() && needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        continue-on-error: true   # every job may have failed
+        with:
+          pattern: pictures-*
+          merge-multiple: true
+          path: .
+      - name: Commit the new pictures
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add harmis/assets
+          if git diff --cached --quiet; then
+            echo "No new pictures to commit."
+            exit 0
+          fi
+          git commit -m "bulk: pictures for ${{ needs.plan.outputs.count }} queued videos [skip ci]"
+          for i in 1 2 3 4; do
+            git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            sleep $((i * 5))
+          done
+          exit 1

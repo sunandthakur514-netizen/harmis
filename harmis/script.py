@@ -224,6 +224,9 @@ def build_sample(sample, genre, lang, library, fmt="short"):
     Scene markers are {line number: scene} or {line number: [scene, [character ids]]}.
     """
     by_id = {cid: library.find(cid) for cid in sample["characters"]}
+    if lang != "hindi" and is_hindi_only(sample, fmt):
+        print(f"[script] '{sample['id']}' is written in Hindi only, so this video will be in Hindi.")
+        lang = "hindi"
     column = LANG_COLUMN[lang] if fmt == "short" else 1  # long stories are Hindi only
     scenes = sample.get("scenes", {})
     scene, cast = CONFIG["genres"][genre].get("default_scene"), None
@@ -250,13 +253,19 @@ def build_sample(sample, genre, lang, library, fmt="short"):
     }
 
 
+def is_hindi_only(sample, fmt="short"):
+    """Long stories, and short ones whose lines are just (speaker, hindi)."""
+    return fmt == "long" or all(len(line) == 2 for line in sample["lines"])
+
+
 def samples_for(fmt):
     return SAMPLES if fmt == "short" else LONG_SAMPLES
 
 
 def sample_scripts(genre, lang, library, fmt="short"):
     """All built-in scripts for the genre, in random order."""
-    scripts = [build_sample(s, genre, lang, library, fmt) for s in samples_for(fmt).get(genre, [])]
+    scripts = [build_sample(s, genre, lang, library, fmt) for s in samples_for(fmt).get(genre, [])
+               if fmt == "long" or lang == "hindi" or not is_hindi_only(s)]  # random picks keep the language
     random.shuffle(scripts)
     return scripts
 
@@ -288,7 +297,7 @@ def get_script(genre, lang, library, use_ai=True, story=None, fmt="short"):
     if story:
         for sample in samples_for(fmt).get(genre, []):
             if sample["id"] == story:
-                print(f"[script] Using built-in story: {sample['title'][lang]}")
+                print(f"[script] Using built-in story: {sample['title'].get(lang) or sample['title']['hindi']}")
                 return build_sample(sample, genre, lang, library, fmt)
         raise ValueError(f"No {fmt} story '{story}' in genre {genre}")
 

@@ -191,14 +191,19 @@ publish:
     reels: ["#reels", "#reelsindia"]   # added to Instagram Reels
 
 # ---------------------------------------------------------------------------
-# Daily automation (.github/workflows/daily.yml): 06:30 and 18:30 IST make a
-# short video, 12:30 IST a long one. Each list is used in order, one story per
-# run, and starts again from the top when it is used up (position kept in
-# state/daily.json). Horror is left out because the channel is for kids.
+# Automation (.github/workflows/daily.yml and bulk.yml)
+#   daily.yml: 06:30 and 18:30 IST short, 12:30 IST long. It first uploads up to
+#              2 videos from the upload queue (GitHub Release "queue"); only when
+#              the queue is empty does it make a new video.
+#   bulk.yml:  makes many videos at once and puts them in the queue.
+# A story is never published twice (see output/published.csv). Stories are taken
+# from these genres in turns; horror is left out because this channel is made
+# for kids (the horror stories stay in the code for other uses).
 # ---------------------------------------------------------------------------
 daily:
   lang: hindi
   style: 3d_cartoon
-  short: [monkey_crocodile, birbal_khichdi, chham_chham_baarish, tenali_thieves,
-          gali_cricket, talkative_tortoise, diwali_mela, dadi_smartphone]
-  long: [sher_khargosh, birbal_lakdi]
+  genres: [kids_story, kids_rhyme, comedy]
+  exclude_stories: []           # story ids never to use automatically
+  max_uploads_per_day: 5        # free YouTube quota: 10,000 units/day, one upload = 1,600 (+50 thumbnail)
+  queue_uploads_per_run: 2      # how many queued videos daily.yml uploads per run

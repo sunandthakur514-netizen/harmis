@@ -1,0 +1,12 @@
+# The proud visiting scholar (Tenali Raman stories)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Vidwan              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: विद्वान
+  english: Scholar
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+type: human             # human / animal (used for the default mouth position)
+seed: 1218              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a proud Indian scholar with a big tilak on his forehead, a shaved head with a small tuft, a saffron shawl, carrying palm-leaf books

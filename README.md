@@ -46,7 +46,9 @@ The style is added to every picture prompt. Each style has its own pictures.
 
 | Step | File | What it does |
 |------|------|--------------|
-| 1 | `harmis/script.py` | Gets a story (a narrator + characters, each line has a scene). Uses Google Gemini if you have a free API key, otherwise a built-in story from `harmis/samples.py` (short) or `harmis/samples_long.py` (long). |
+| 1 | `harmis/script.py` | Gets a story (a narrator + characters, each line has a scene). Uses Google Gemini if you have a free API key, otherwise a built-in story from `harmis/samples.py` / `harmis/samples_more.py` (short) or `harmis/samples_long.py` /
+`harmis/samples_long_more.py` (long). The folk tales are softened for young
+children: nobody is hurt, the villain runs away or says sorry. |
 | 2 | `harmis/voice.py` | Turns every line into speech with **edge-tts** Indian voices. |
 | 3 | `harmis/library.py` + `harmis/providers.py` | Gets a picture for every character and scene, from the cache or from a free AI image service. |
 | 4 | `harmis/animate.py` | Layers the characters over the backgrounds and builds the video with **Pillow** + **MoviePy**. |
@@ -409,13 +411,38 @@ computer needed:
 | 12:30 | `0 7 * * *` | long, 5–7 minutes (Hindi, 3d_cartoon) |
 | 18:30 | `0 13 * * *` | short (Hindi, 3d_cartoon) |
 
-Each run picks the next story from the `daily:` lists in `config.yaml` (no repeats
-until a list is used up), makes any missing pictures with `local_sd`, renders the
-video, uploads it with `python -m harmis.publish --to youtube`, and commits the
-rotation (`state/daily.json`) and new pictures back to the repo. The mp4 is also
-kept as a run artifact for 3 days so you can check it. Start a test run any time
-from **Actions → daily → Run workflow** (untick "Upload to YouTube" to only make
-the video).
+Each run first looks at the **upload queue** (a GitHub Release named `queue`, filled
+by `bulk.yml`, see below). If it has videos, it uploads up to 2 of them (oldest
+first, shorts and longs mixed), deletes them from the queue and makes nothing new.
+Only when the queue is empty does it make a new video: it picks the next story
+that was **never published**, makes any missing pictures with `local_sd`, renders
+it and uploads it. The mp4 is kept as a run artifact for 3 days so you can check it.
+Start a test run any time from **Actions → daily → Run workflow** (untick "Upload
+to YouTube" to only make the video).
+
+- **Never twice:** every upload is logged in `output/published.csv` (time, video,
+  YouTube id and url, story id, title), which the workflow commits back to the
+  repo. Published stories and stories already in the queue are always skipped.
+  When every built-in story is used, the run says so and makes nothing: add
+  more stories to `harmis/samples*.py`.
+- **Quota:** the free YouTube quota is 10,000 units a day and one upload costs
+  1,600 (+50 for a thumbnail), so HARMIS uploads at most **5 videos per quota day**
+  (midnight to midnight Pacific time), counted from `published.csv`. Change it with
+  `daily: max_uploads_per_day` in `config.yaml`.
+- **Kids only:** stories come from the genres in `daily: genres` (kids stories,
+  rhymes and family comedy). The horror stories stay in the code but are never
+  used for this made-for-kids channel.
+
+### Bulk videos and the upload queue (`bulk.yml`)
+
+**Actions → bulk → Run workflow** makes many videos at once (default **15 shorts
+and 7 longs**). It picks stories that were never published and are not queued,
+makes one video per job, **5 jobs at a time**, and adds each `.mp4` with its
+`.json` captions to the `queue` release (Releases page of the repo). New pictures
+are committed at the end so later videos reuse them. Nothing is uploaded by
+`bulk.yml`; `daily.yml` uploads the queued videos over the next days, within the
+daily limit. See what is waiting with `python -m harmis.upload_queue list`
+(needs `GITHUB_TOKEN`), or on the Releases page.
 
 Add these under **Settings → Secrets and variables → Actions → New repository secret**:
 
@@ -495,18 +522,43 @@ Change these without touching the code:
 | `haveli_paayal` | horror | original |
 | `aakhri_bus` | horror | original |
 
-Each story is written in Hindi, Hinglish and English.
+Each of these is written in Hindi, Hinglish and English. These newer ones are in
+**Hindi only** (`harmis/samples_more.py`; other `--lang` values fall back to Hindi):
+
+| `--story` | Genre | Source |
+|-----------|-------|--------|
+| `pyasa_kauwa` | kids_story | folk tale (the thirsty crow) |
+| `kabutar_jaal` | kids_story | Panchatantra (the doves and the net) |
+| `bagula_kekda` | kids_story | Panchatantra (the crane and the crab) |
+| `chuhe_hathi` | kids_story | Panchatantra (the mice who freed the elephants) |
+| `bandar_mali` | kids_story | Jataka (the monkey gardeners) |
+| `teetar_bado_ka_aadar` | kids_story | Jataka (the partridge, monkey and elephant) |
+| `birbal_kaue_ginti` | kids_story | Akbar-Birbal (how many crows?) |
+| `birbal_lakeer` | kids_story | Akbar-Birbal (the shorter line) |
+| `birbal_kuan` | kids_story | Akbar-Birbal (the sold well) |
+| `tenali_billi` | kids_story | Tenali Raman (the cat and the milk) |
+| `tenali_kuan_shaadi` | kids_story | Tenali Raman (the wedding of the wells) |
+| `tenali_hara_ghoda` | kids_story | Tenali Raman (the green horse) |
+| `sooraj_dada`, `titli_rani`, `daant_chamkao`, `phalon_ki_tokri`, `ginti_ke_tare`, `indradhanush` | kids_rhyme | original rhymes |
 
 Long stories (`--format long`, 5–7 minutes, Hindi):
 
-| `--story` | Genre | Source | Scenes / background pictures |
-|-----------|-------|--------|------------------------------|
-| `sher_khargosh` | kids_story | Panchatantra (the lion and the clever rabbit) | 16 / 7 |
-| `birbal_lakdi` | kids_story | Akbar-Birbal (the thief's magic stick) | 15 / 7 |
+| `--story` | Genre | Source |
+|-----------|-------|--------|
+| `sher_khargosh` | kids_story | Panchatantra (the lion and the clever rabbit) |
+| `birbal_lakdi` | kids_story | Akbar-Birbal (the thief's magic stick) |
+| `kauwa_saanp` | kids_story | Panchatantra (the crows and the greedy snake) |
+| `chidiya_hathi` | kids_story | Panchatantra (the sparrow and the proud elephant) |
+| `sone_ka_hans` | kids_story | Jataka (the golden swan) |
+| `sone_ka_hiran` | kids_story | Jataka (the golden Ruru deer) |
+| `birbal_mom_ka_sher` | kids_story | Akbar-Birbal (the wax lion) |
+| `tenali_vidwan` | kids_story | Tenali Raman (the proud scholar) |
 
 The folk tales are public domain and everything else is original. There are no
 copyrighted characters or songs. To add your own story, copy an entry in
-`harmis/samples.py` (short) or `harmis/samples_long.py` (long).
+`harmis/samples.py` / `harmis/samples_more.py` (short) or `harmis/samples_long.py` /
+`harmis/samples_long_more.py` (long). The folk tales are softened for young
+children: nobody is hurt, the villain runs away or says sorry.
 
 ## Unlimited local pictures (`local_sd`)
 

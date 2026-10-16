@@ -1,0 +1,12 @@
+# The royal gardener (Jataka)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Mali              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: माली
+  english: Gardener
+gender: m               # m / f (picks the voice)
+age: old            # child / adult / old
+type: human             # human / animal (used for the default mouth position)
+seed: 1207              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a kind old Indian gardener with a white beard, a white dhoti and kurta, a red cloth turban, holding a watering can
