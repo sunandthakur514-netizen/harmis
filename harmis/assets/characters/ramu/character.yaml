@@ -11,3 +11,8 @@ seed: 1124              # fixed seed so the picture comes out the same
 description: >-           # fixed look, added to every image prompt
   a thin young Indian servant in his 20s with messy black hair, wearing a simple faded
   brown kurta and white pyjama, a cloth over his shoulder, nervous expression
+# Mouth and eyes position as fractions of the picture: [x, y, width, height].
+# Found automatically (head shape). Edit the numbers if the mouth moves in the wrong place
+# (then delete the *_mouth_*.png / *_blink.png / *_variants.json files to remake them).
+mouth_box: [0.392, 0.154, 0.164, 0.026]
+eyes_box: [0.298, 0.094, 0.352, 0.034]

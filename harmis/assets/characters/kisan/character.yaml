@@ -10,3 +10,8 @@ type: human             # human / animal (used for the default mouth position)
 seed: 1220              # fixed seed so the picture comes out the same
 description: >-           # fixed look, added to every image prompt
   a hard-working Indian farmer with a moustache, a white kurta and dhoti, a green turban, holding a small bundle
+# Mouth and eyes position as fractions of the picture: [x, y, width, height].
+# Found automatically (head shape). Edit the numbers if the mouth moves in the wrong place
+# (then delete the *_mouth_*.png / *_blink.png / *_variants.json files to remake them).
+mouth_box: [0.574, 0.198, 0.148, 0.033]
+eyes_box: [0.489, 0.121, 0.318, 0.044]

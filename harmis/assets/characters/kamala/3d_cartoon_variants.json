@@ -1,0 +1,17 @@
+{
+  "base_sha": "d5c5fe9db575ca3584f66faae3a010026efc5073",
+  "mouth_box": [
+    0.578,
+    0.172,
+    0.089,
+    0.028
+  ],
+  "eyes_box": [
+    0.527,
+    0.105,
+    0.191,
+    0.038
+  ],
+  "mouth": "inpainted",
+  "blink": "inpainted"
+}

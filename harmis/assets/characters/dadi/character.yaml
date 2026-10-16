@@ -11,3 +11,8 @@ seed: 1111              # fixed seed so the picture comes out the same
 description: >-           # fixed look, added to every image prompt
   a sweet Indian grandmother in her 70s with grey hair in a neat bun, round glasses and
   a warm smile, a small red bindi, wearing a cream cotton saree with a maroon border
+# Mouth and eyes position as fractions of the picture: [x, y, width, height].
+# Found automatically (head shape). Edit the numbers if the mouth moves in the wrong place
+# (then delete the *_mouth_*.png / *_blink.png / *_variants.json files to remake them).
+mouth_box: [0.44, 0.224, 0.127, 0.037]
+eyes_box: [0.367, 0.137, 0.272, 0.05]

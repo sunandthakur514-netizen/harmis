@@ -12,3 +12,8 @@ description: >-           # fixed look, added to every image prompt
   a witty South Indian man in his 30s with a big playful smile and a thin moustache,
   black hair tied back, wearing a white dhoti and a cream angavastram shawl, a
   sandalwood mark on his forehead
+# Mouth and eyes position as fractions of the picture: [x, y, width, height].
+# Found automatically (head shape). Edit the numbers if the mouth moves in the wrong place
+# (then delete the *_mouth_*.png / *_blink.png / *_variants.json files to remake them).
+mouth_box: [0.474, 0.165, 0.147, 0.027]
+eyes_box: [0.39, 0.102, 0.315, 0.037]

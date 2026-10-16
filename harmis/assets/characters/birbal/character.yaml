@@ -12,3 +12,8 @@ description: >-           # fixed look, added to every image prompt
   a clever, cheerful Indian minister in his 40s with a warm smile and a short neat black
   beard, wearing a white and gold angarkha tunic, cream churidar trousers and a saffron
   turban
+# Mouth and eyes position as fractions of the picture: [x, y, width, height].
+# Found automatically (head shape). Edit the numbers if the mouth moves in the wrong place
+# (then delete the *_mouth_*.png / *_blink.png / *_variants.json files to remake them).
+mouth_box: [0.353, 0.167, 0.098, 0.028]
+eyes_box: [0.297, 0.103, 0.21, 0.037]

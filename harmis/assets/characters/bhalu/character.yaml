@@ -11,3 +11,8 @@ seed: 1122              # fixed seed so the picture comes out the same
 description: >-           # fixed look, added to every image prompt
   a kind old brown bear with a grey muzzle, small round glasses and a walking stick,
   wearing a simple orange shawl, standing upright
+# Mouth and eyes position as fractions of the picture: [x, y, width, height].
+# Found automatically (head shape). Edit the numbers if the mouth moves in the wrong place
+# (then delete the *_mouth_*.png / *_blink.png / *_variants.json files to remake them).
+mouth_box: [0.574, 0.244, 0.152, 0.04]
+eyes_box: [0.487, 0.149, 0.326, 0.054]

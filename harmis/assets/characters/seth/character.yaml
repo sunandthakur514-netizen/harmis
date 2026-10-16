@@ -11,3 +11,8 @@ seed: 1123              # fixed seed so the picture comes out the same
 description: >-           # fixed look, added to every image prompt
   a plump elderly Indian merchant in his 60s with a grey moustache, wearing a cream
   dhoti kurta, a red turban and a small money pouch at his waist, worried but kind face
+# Mouth and eyes position as fractions of the picture: [x, y, width, height].
+# Found automatically (default for a human). Edit the numbers if the mouth moves in the wrong place
+# (then delete the *_mouth_*.png / *_blink.png / *_variants.json files to remake them).
+mouth_box: [0.44, 0.19, 0.12, 0.035]
+eyes_box: [0.35, 0.125, 0.3, 0.05]

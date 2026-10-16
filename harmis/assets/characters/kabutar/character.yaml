@@ -10,3 +10,8 @@ type: animal             # human / animal (used for the default mouth position)
 seed: 1202              # fixed seed so the picture comes out the same
 description: >-           # fixed look, added to every image prompt
   a wise grey pigeon king with a shiny green and purple neck and a tiny golden crown
+# Mouth and eyes position as fractions of the picture: [x, y, width, height].
+# Found automatically (head shape). Edit the numbers if the mouth moves in the wrong place
+# (then delete the *_mouth_*.png / *_blink.png / *_variants.json files to remake them).
+mouth_box: [0.366, 0.24, 0.277, 0.04]
+eyes_box: [0.208, 0.147, 0.593, 0.053]

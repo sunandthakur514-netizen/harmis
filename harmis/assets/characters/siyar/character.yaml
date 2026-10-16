@@ -10,3 +10,8 @@ type: animal             # human / animal (used for the default mouth position)
 seed: 1211              # fixed seed so the picture comes out the same
 description: >-           # fixed look, added to every image prompt
   a wise brown and golden jackal with pointed ears, a bushy tail and a thoughtful smile, standing upright
+# Mouth and eyes position as fractions of the picture: [x, y, width, height].
+# Found automatically (default for an animal). Edit the numbers if the mouth moves in the wrong place
+# (then delete the *_mouth_*.png / *_blink.png / *_variants.json files to remake them).
+mouth_box: [0.42, 0.22, 0.16, 0.045]
+eyes_box: [0.32, 0.13, 0.36, 0.06]
