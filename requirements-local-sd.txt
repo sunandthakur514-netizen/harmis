@@ -1,5 +1,5 @@
-# OPTIONAL: the "local_sd" picture provider (Stable Diffusion Turbo on your own CPU).
-# Free and unlimited, but a bigger install (~1 GB of packages + a 2.5 GB model,
+# OPTIONAL: the "local_sd" picture provider (SDXL Turbo on your own CPU).
+# Free and unlimited, but a bigger install (~1 GB of packages + a ~7 GB model,
 # downloaded once). The main HARMIS install (requirements.txt) does not need it.
 #
 # Install AFTER requirements.txt:

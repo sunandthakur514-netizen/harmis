@@ -62,7 +62,7 @@ Every picture is requested from these providers, in this order (change it in `co
 1. **Pollinations.ai**: free, no key needed. Its free tier can stop after a
    picture or two with *HTTP 402 Payment Required*. HARMIS then skips it for the
    rest of the run straight away.
-2. **local_sd**: Stable Diffusion Turbo on **your own CPU**. Free and unlimited,
+2. **local_sd**: SDXL Turbo on **your own CPU**. Free and unlimited,
    but optional (see [Unlimited local pictures](#unlimited-local-pictures-local_sd)).
    Skipped with a log line if its packages are not installed.
 3. **Gemini image generation**: only if `GEMINI_API_KEY` is set
@@ -175,7 +175,10 @@ doing what happens there** (the tortoise holding the stick, flying with the swan
 - The characters keep the same fixed description, the same style words and the same seed
   in every picture. **Gemini image** also gets each character's own picture as a
   reference. If the key has no free image quota, Gemini is skipped for the run and
-  **local_sd** makes the pictures.
+  **local_sd** makes the pictures (the log shows Google's exact answer, e.g.
+  `quotaId=GenerateRequestsPerDayPerProjectPerModel-FreeTier, quotaValue=0`, which means
+  the free tier has no image generation for that model; enabling billing on the Google
+  Cloud project, or a newer free image model in `image_providers: gemini: model`, fixes it).
 - Shots are cached in `cache/shots/<story>/` and not committed (each story is published
   once). If a shot cannot be made, a simple picture is put together from the background
   and the character pictures.
@@ -305,7 +308,7 @@ Options: **story**, **style** (`auto` = the genre's style) and **format** (`auto
 
 1. **list**: finds which scene and character pictures the story still needs.
 2. **generate**: makes each missing picture in its own job, up to 5 at a time,
-   with `local_sd` (Stable Diffusion Turbo on the runner's CPU). The model and the
+   with `local_sd` (SDXL Turbo on the runner's CPU). The model and the
    pip packages are cached, so only the very first run downloads them.
 3. **commit**: collects the new pictures and commits them to `harmis/assets/`.
 
@@ -609,14 +612,27 @@ children: nobody is hurt, the villain runs away or says sorry.
 
 ## Unlimited local pictures (`local_sd`)
 
-`local_sd` makes pictures on your own computer with **Stable Diffusion Turbo**
-(`stabilityai/sd-turbo`), using only the CPU, so there is no GPU, key or limit.
-The model makes a 512 px picture (512x768 for tall or wide ones) in 1–4 steps,
-and HARMIS enlarges it with Pillow (LANCZOS) to the size it needs.
+`local_sd` makes pictures on your own computer with **SDXL Turbo**
+(`stabilityai/sdxl-turbo`), using only the CPU, so there is no GPU, key or limit.
+The model makes a 512x896 picture (tall or wide) in 4 steps, and HARMIS enlarges
+it with Pillow (LANCZOS) to the size it needs. It needs about 10 GB of memory and
+takes a few minutes per picture on a GitHub runner, so the workflows allow up to
+5 hours.
+
+**One kind of character per picture:** local models merge different animals into
+hybrids (a swan with a tortoise shell), so a scene with two kinds of characters is
+drawn as **close-ups**, one per character, and the video shows whoever is speaking
+(narration takes turns). Set `shots: local_sd_mode: wide` for one wide picture with
+each character in its own place instead. The negative prompt ("hybrid, merged
+animals, extra heads, deformed, two animals fused") works because `guidance: 1.5`;
+set `guidance: 0` for pictures twice as fast without it. The story's key **prop**
+(the stick in the tortoise story) is put first in the prompt so it is drawn.
+Gemini image, when the key has image quota, draws the whole scene together instead.
 
 It is optional, because it is a bigger install: about 1 GB of packages, plus the
-2.5 GB model, which is downloaded **once** on the first picture and then cached
-(normal Hugging Face cache, or `cache_dir` in `config.yaml`).
+~7 GB model, which is downloaded **once** on the first picture and then cached
+(normal Hugging Face cache, or `cache_dir` in `config.yaml`; in GitHub Actions the
+cache key is `hf-sdxl-turbo-fp16-v1`).
 
 **Install** (after the normal `pip install -r requirements.txt`):
 
@@ -653,8 +669,8 @@ python -m harmis.prepare --story birbal_khichdi --style 3d_cartoon
 To use **only** the local model (no internet services): `--providers local_sd`.
 Settings (`steps`, `size`, `threads`, `cache_dir`) are under `local_sd:` in `config.yaml`.
 
-**Licence:** SD-Turbo comes with Stability AI's own model licence. Check it on the
-model page (<https://huggingface.co/stabilityai/sd-turbo>) before you publish
+**Licence:** SDXL Turbo comes with Stability AI's own model licence. Check it on the
+model page (<https://huggingface.co/stabilityai/sdxl-turbo>) before you publish
 videos made with it commercially (for example monetised YouTube).
 
 ## Good to know

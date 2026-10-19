@@ -328,8 +328,9 @@ class Library:
         self.script = script
         return self.shots
 
-    def _shot_files(self, shot):
-        name = f"{shot['index']:02d}__{self.style}{CACHE_SUFFIX[self.fmt]}"
+    def _shot_files(self, shot, key=""):
+        """Cache files for a shot; key = a character id for one of its local close-ups."""
+        name = f"{shot['index']:02d}{'_' + key if key else ''}__{self.style}{CACHE_SUFFIX[self.fmt]}"
         folder = os.path.join(shot_plan.SHOT_DIR, shot_plan.story_key(self.script))
         return os.path.join(folder, name + ".png"), os.path.join(folder, name + ".json")
 
@@ -338,34 +339,76 @@ class Library:
         return shot_plan.prompts(shot, self.script, self, style_text(self.style), short_style(self.style),
                                  SAFE_CORE, mood, COMPOSITION[self.fmt])
 
-    def shot_image(self, shot):
-        """The full scene picture for one shot, or None (then a simple picture is put together)."""
-        prompt, compact, cast = self._shot_prompts(shot)
+    def _local_prompts(self, shot):
+        return shot_plan.local_prompts(shot, self, short_style(self.style), SAFE_CORE)
+
+    def _cached_shot(self, shot):
+        """A shot made before: the full picture, or all of its local pictures. None if missing."""
         png, meta = self._shot_files(shot)
-        label = f"shot {shot['index']}"
-        if not self.refresh:
-            cached = _load_cached(png, meta, prompt)
-            if cached is not None:
-                self.status[label] = "cached"
-                return cached.convert("RGB")
-        references = []
-        for name, char_id in cast if self.chain.providers else []:  # each character's own picture keeps them looking the same (Gemini)
-            picture = self.character_image(self.characters[char_id])
-            if picture is not None:
-                references.append((name, picture))
-        size = BACKGROUND_SIZE[self.fmt]
-        print(f"[shots] {label}: {shot['action'][:90]}")
-        image, provider = self.chain.generate(prompt, *size, seed=shot_plan.story_seed(self.script), label=label,
-                                              negative=CONFIG["safety"]["negative"], compact=compact,
-                                              references=references)
-        self.status[label] = provider
-        if image is None:
-            return None
+        full = _load_cached(png, meta, self._shot_prompts(shot)[0])
+        if full is not None:
+            return full.convert("RGB")
+        pictures = {}
+        for key, prompt in self._local_prompts(shot):
+            cached = _load_cached(*self._shot_files(shot, key), prompt)
+            if cached is None:
+                return None
+            pictures[key] = cached.convert("RGB")
+        return pictures[""] if list(pictures) == [""] else pictures
+
+    def _save_shot(self, image, shot, key, prompt, provider, size):
         image = ImageOps.fit(image, size)
+        png, meta = self._shot_files(shot, key)
         os.makedirs(os.path.dirname(png), exist_ok=True)
         image.save(png)
         _save_meta(meta, prompt, provider, self.style)
         return image
+
+    def shot_image(self, shot):
+        """The scene picture(s) for one shot.
+
+        Returns one picture, or {character id: close-up} when a local model had to show a
+        two-kind scene as close-ups, or None (then a simple picture is put together).
+        Models that can draw several characters together (Gemini, with the character
+        pictures as references) are asked first; local_sd gets one kind per picture.
+        """
+        label = f"shot {shot['index']}"
+        if not self.refresh:
+            cached = self._cached_shot(shot)
+            if cached is not None:
+                self.status[label] = "cached"
+                return cached
+        prompt, compact, cast = self._shot_prompts(shot)
+        size = BACKGROUND_SIZE[self.fmt]
+        seed = shot_plan.story_seed(self.script)
+        negative = CONFIG["safety"]["negative"]
+        print(f"[shots] {label}: {(shot['prop'] + ' | ') if shot.get('prop') else ''}{shot['action'][:90]}")
+        cloud = [p.name for p in self.chain.providers if p.name != "local_sd"]
+        if cloud:
+            references = []
+            for name, char_id in cast:  # each character's own picture keeps them looking the same (Gemini)
+                picture = self.character_image(self.characters[char_id])
+                if picture is not None:
+                    references.append((name, picture))
+            image, provider = self.chain.generate(prompt, *size, seed=seed, label=label, negative=negative,
+                                                  compact=compact, references=references, only=cloud)
+            if image is not None:
+                self.status[label] = provider
+                return self._save_shot(image, shot, "", prompt, provider, size)
+        if not self.chain.has("local_sd"):
+            self.status[label] = "shapes"
+            return None
+        pictures = {}
+        for key, local_prompt in self._local_prompts(shot):
+            part = f"{label}{' close-up ' + key if key else ''}"
+            image, provider = self.chain.generate(local_prompt, *size, seed=seed, label=part, negative=negative,
+                                                  compact=local_prompt, only=["local_sd"])
+            if image is None:
+                self.status[label] = "shapes"
+                return None
+            pictures[key] = self._save_shot(image, shot, key, local_prompt, provider, size)
+        self.status[label] = "local_sd" + (f" ({len(pictures)} close-ups)" if len(pictures) > 1 else "")
+        return pictures[""] if list(pictures) == [""] else pictures
 
     # ----- everything one video needs -----
     def load_visuals(self, script):
@@ -422,9 +465,7 @@ class Library:
             png, meta = os.path.join(folder, f"{self.style}.png"), os.path.join(folder, f"{self.style}.json")
             return _load_cached(png, meta, character_prompt(data, self.style)) is not None
         if kind == "shot":
-            shot = self.shots[int(name)]
-            png, meta = self._shot_files(shot)
-            return _load_cached(png, meta, self._shot_prompts(shot)[0]) is not None
+            return self._cached_shot(self.shots[int(name)]) is not None
         return self.cached_background(name) is not None
 
     def make_picture(self, item):

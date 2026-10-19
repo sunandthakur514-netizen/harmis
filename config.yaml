@@ -53,13 +53,14 @@ image_providers:
     delay_seconds: 15
     backoff_seconds: 20
 
-  local_sd:                   # Stable Diffusion Turbo on your own CPU: free and unlimited.
+  local_sd:                   # Stable Diffusion XL Turbo on your own CPU: free and unlimited.
                               # Optional: pip install -r requirements-local-sd.txt (see README)
-    model: stabilityai/sd-turbo
+    model: stabilityai/sdxl-turbo
     variant: fp16             # download the half-size files (turned into full precision for the CPU)
-    steps: 2                  # 1-4; more steps = a little better, a little slower
+    steps: 4                  # 1-8
+    guidance: 1.5             # above 1 the negative prompt works (no hybrids); 0 = twice as fast
     size: 512                 # short side of the picture the model makes (then enlarged)
-    max_side: 768             # long side limit for tall / wide pictures
+    max_side: 896             # long side: 512x896 for tall / wide pictures
     threads: 0                # CPU threads to use; 0 = all
     cache_dir: null           # where the model is stored; null = the normal Hugging Face cache
     tries: 1                  # a local model does not get better by retrying
@@ -113,6 +114,11 @@ voice:
 shots:
   max_lines_per_shot: {short: 3, long: 4}   # a new picture at least this often
   planner_model: gemini-2.5-flash           # writes what each picture shows (1 request per story)
+  # Local models (local_sd) mix different animals into hybrids, so a local picture
+  # shows only ONE kind of character. A scene with two kinds becomes:
+  #   closeups: one close-up per character, shown in turn (whoever speaks is shown)
+  #   wide:     one wide picture with each character in its own place (left / right)
+  local_sd_mode: closeups
 
 # ---------------------------------------------------------------------------
 # Sound (harmis/sound.py): music and effects are CC0, made by tools/make_sounds.py
@@ -163,8 +169,8 @@ safety:
     no blood, no weapons, original character design, no text, no logo, no watermark
   negative: >-
     nsfw, nudity, gore, blood, violence, weapon, horror face, text, letters,
-    watermark, logo, signature, copyrighted character, two characters, pair,
-    group, crowd, duplicate, multiple people, multiple animals
+    watermark, logo, signature, copyrighted character, hybrid, merged animals,
+    extra heads, deformed, two animals fused, mutated, extra limbs, duplicate
   blocked_words: [disney, pixar, dreamworks, ghibli, marvel, mickey, minnie, elsa,
                   frozen, shrek, pokemon, pikachu, naruto, doraemon, shinchan,
                   chhota bheem, motu patlu, peppa, spongebob, barbie, superman,

@@ -44,7 +44,7 @@ env:
   PYTHON_VERSION: "3.11"
   HF_HUB_DISABLE_TELEMETRY: "1"
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}   # voices, scene descriptions and (if free quota) pictures
-  MODEL_CACHE_KEY: hf-sd-turbo-fp16-v1
+  MODEL_CACHE_KEY: hf-sdxl-turbo-fp16-v1
   REMBG_CACHE_KEY: rembg-u2net-v1
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   UPLOAD: ${{ github.event_name == 'schedule' || inputs.publish }}
@@ -52,7 +52,7 @@ env:
 jobs:
   daily:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 300   # SDXL Turbo on the CPU is slow (a few minutes per picture)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -137,7 +137,7 @@ jobs:
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements-local-sd.txt
-      - name: Restore Stable Diffusion Turbo model
+      - name: Restore SDXL Turbo model
         if: steps.pick.outputs.make == 'true'
         id: model-cache
         uses: actions/cache/restore@v4

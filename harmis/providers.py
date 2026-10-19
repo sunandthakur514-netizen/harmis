@@ -17,7 +17,7 @@ Rate limits never switch a provider off; only repeated real errors do. A
 off at once for this run. Gemini also gets the characters' own pictures as
 references, so they look the same in every scene.
 
-local_sd runs Stable Diffusion Turbo on your own computer's CPU: no limits, no
+local_sd runs SDXL Turbo on your own computer's CPU: no limits, no
 key, but it needs the optional packages in requirements-local-sd.txt.
 If all providers fail the caller draws the simple shape style instead, so a
 video is always produced.
@@ -163,11 +163,12 @@ class ModelUnavailable(Exception):
 
 
 class LocalSDProvider(ImageProvider):
-    """Stable Diffusion Turbo on your own CPU: free and unlimited (optional packages needed).
+    """Stable Diffusion (SDXL) Turbo on your own CPU: free and unlimited (optional packages needed).
 
-    The model (about 2.5 GB) is downloaded once from Hugging Face and cached. It
-    makes a small picture (512 px on the short side) in 1-4 steps, which is then
-    enlarged with Pillow (LANCZOS) to the size HARMIS needs.
+    The model (about 7 GB for SDXL Turbo) is downloaded once from Hugging Face and
+    cached. It makes a small picture (512x896) in 4 steps, which is then enlarged
+    with Pillow (LANCZOS) to the size HARMIS needs. Local models mix up different
+    animals easily, so shots.py gives it one kind of character per picture.
     """
     name = "local_sd"
     _pipe = None  # loaded once per run and shared
@@ -186,10 +187,10 @@ class LocalSDProvider(ImageProvider):
         from diffusers import AutoPipelineForText2Image
 
         torch.set_num_threads(int(self.settings.get("threads") or os.cpu_count() or 2))
-        model = self.settings.get("model", "stabilityai/sd-turbo")
+        model = self.settings.get("model", "stabilityai/sdxl-turbo")
         cache_dir = self.settings.get("cache_dir") or None
         print(f"[images] local_sd: loading {model} on the CPU "
-              "(the first time this downloads about 2.5 GB, then it is cached) ...")
+              "(the first time this downloads it - about 7 GB for SDXL Turbo - then it is cached) ...")
         start = time.time()
         pipe, last_error = None, None
         for variant in dict.fromkeys([self.settings.get("variant") or None, None]):  # fp16 files: half the download
@@ -202,13 +203,15 @@ class LocalSDProvider(ImageProvider):
         if pipe is None:
             raise ModelUnavailable(f"could not load {model}: {' '.join(str(last_error).split())[:150]}")
         pipe = pipe.to("cpu")
+        pipe.enable_attention_slicing()  # less memory (SDXL needs about 10 GB on the CPU)
         pipe.set_progress_bar_config(disable=True)
         LocalSDProvider._pipe = pipe
         print(f"[images] local_sd: model ready in {time.time() - start:.0f}s")
         return pipe
 
     def small_size(self, width, height):
-        """512 on the short side, the long side following the aspect ratio (multiple of 64)."""
+        """`size` on the short side (512), the long side following the aspect ratio up to
+        `max_side` (896), in multiples of 64. The picture is enlarged afterwards."""
         base = int(self.settings.get("size", 512))
         longest = int(self.settings.get("max_side", 768))
         if width == height:
@@ -220,10 +223,14 @@ class LocalSDProvider(ImageProvider):
         import torch
         pipe = self._load()
         w, h = self.small_size(width, height)
+        guidance = float(self.settings.get("guidance", 0.0))
         image = pipe(
             prompt=compact or prompt,
-            num_inference_steps=max(1, min(4, int(self.settings.get("steps", 2)))),
-            guidance_scale=0.0,  # SD Turbo is made to run without guidance
+            # The negative prompt ("hybrid, merged animals, ...") only works with guidance above 1;
+            # Turbo models are made for 0, so keep it low (each step then runs twice).
+            negative_prompt=negative if guidance > 1 and negative else None,
+            num_inference_steps=max(1, min(8, int(self.settings.get("steps", 4)))),
+            guidance_scale=guidance,
             width=w, height=h,
             generator=torch.Generator("cpu").manual_seed(int(seed)),
         ).images[0]
@@ -263,11 +270,28 @@ def classify(error):
     return OTHER
 
 
+def google_error(response):
+    """The useful parts of a Google API error: message, quota id, limit and retry delay."""
+    try:
+        error = response.json()["error"]
+    except Exception:
+        return None
+    parts = [str(error.get("message", "")).split("\n")[0][:200]]
+    for detail in error.get("details", []):
+        for violation in detail.get("violations", []):
+            quota = ", ".join(f"{k}={violation[k]}" for k in ("quotaMetric", "quotaId", "quotaValue") if violation.get(k))
+            if quota:
+                parts.append(f"quota: {quota}")
+        if detail.get("retryDelay"):
+            parts.append(f"retry after {detail['retryDelay']}")
+    return " | ".join(p for p in parts if p)
+
+
 def describe(error):
     """One line with the HTTP status code and error text (never the API key)."""
     if isinstance(error, requests.HTTPError) and error.response is not None:
         response = error.response
-        text = " ".join((response.text or "").split())[:120]
+        text = google_error(response) or " ".join((response.text or "").split())[:160]
         return f"HTTP {response.status_code} {response.reason or ''} {text}".strip()
     return f"{type(error).__name__}: {' '.join(str(error).split())[:120]}"
 
@@ -324,11 +348,18 @@ class ImageChain:
             print(f"[images]   waiting {wait:.0f}s, then trying again ...")
             time.sleep(wait)
 
-    def generate(self, prompt, width, height, seed, label, negative="", compact=None, references=None):
-        """Return (image, provider name) or (None, "shapes") if every provider failed."""
+    def has(self, name):
+        """True if this provider is on for this run (and not switched off)."""
+        return any(p.name == name and self.failures[p.name] < self.disable_after for p in self.providers)
+
+    def generate(self, prompt, width, height, seed, label, negative="", compact=None, references=None, only=None):
+        """Return (image, provider name) or (None, "shapes") if every provider failed.
+
+        only: names of the providers to try this time (default: all).
+        """
         for provider in self.providers:
-            if self.failures[provider.name] >= self.disable_after:
-                continue  # switched off for this run
+            if self.failures[provider.name] >= self.disable_after or (only is not None and provider.name not in only):
+                continue  # switched off for this run (or not wanted for this picture)
             try:
                 image, seconds = self._try(provider, prompt, width, height, seed, negative, label, compact, references)
                 self.failures[provider.name] = 0
@@ -344,12 +375,16 @@ class ImageChain:
                     self.failures[provider.name] = self.disable_after
                     why = {PAYMENT: "asks for payment (HTTP 402)", QUOTA: "has no free quota left today"}.get(
                         failed.kind, "cannot be used")
-                    print(f"[images] {provider.name} {why}: skipping it for the rest of this run")
+                    print(f"[images] {provider.name} {why}: skipping it for the rest of this run "
+                          f"(reason: {failed})")
                 else:
                     self.failures[provider.name] += 1
                     if self.failures[provider.name] >= self.disable_after:
                         print(f"[images] {provider.name}: {self.failures[provider.name]} errors in a row, "
                               "not asking it again in this run")
+        if only is not None:  # the caller tries other providers next
+            print(f"[images] {label}: {', '.join(only)} could not make it")
+            return None, "none"
         self.used[label] = "shapes"
         reason = "no provider worked" if self.providers else "no image providers enabled"
         print(f"[images] {label}: {reason}, using the simple shape style")

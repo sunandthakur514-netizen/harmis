@@ -133,19 +133,44 @@ SAMPLES = {
             "characters": ["kachhua", "hans"],
             "scenes": {0: "village_pond", 3: "sky_over_village", 5: "grassy_meadow"},
             # What each picture shows (optional; a new picture starts at each of these lines).
+            # A plain sentence works too; "prop" goes first in the prompt so it is always drawn,
+            # "closeups" / "wide" are used when a local model may show one kind of animal at a time.
             "actions": {
-                0: "the little green tortoise sits on a rock at the edge of a lotus pond, happily chatting "
-                   "with two white swans standing in the shallow water beside him",
-                1: "the pond is almost dry with cracked mud; two white swans hold a wooden stick in their "
-                   "beaks and show it to the worried tortoise",
-                3: "two white swans fly high in the blue sky holding the ends of a wooden stick in their beaks, "
-                   "the green tortoise hangs from the middle of the stick by his mouth, a tiny village far below",
-                4: "high in the sky the tortoise opens his mouth to talk and lets go of the stick, "
-                   "the two flying swans look back at him in surprise",
-                5: "the green tortoise has landed softly on his back in thick green grass in a meadow, dizzy "
-                   "but unhurt, the two white swans landing gently next to him",
-                6: "the tortoise sits up in the meadow with a shy smile, promising to talk less, "
-                   "the two white swans smile kindly at him",
+                0: {"action": "the little green tortoise sits on a rock at the edge of a lotus pond, happily "
+                              "chatting with two white swans standing in the shallow water beside him",
+                    "closeups": {"kachhua": "sitting on a rock at a lotus pond, talking happily with a big smile",
+                                 "hans": "two white swans standing in shallow pond water, listening kindly"},
+                    "wide": "small green tortoise on a rock on the left, two white swans in the water on the right"},
+                1: {"action": "the pond is almost dry with cracked mud; two white swans hold a wooden stick in "
+                              "their beaks and show it to the worried tortoise",
+                    "prop": "a long wooden stick",
+                    "closeups": {"kachhua": "looking worried on cracked dry mud of a dried-up pond",
+                                 "hans": "two white swans holding a long wooden stick in their beaks"},
+                    "wide": "worried tortoise on cracked mud on the left, two swans holding a stick on the right"},
+                3: {"action": "two white swans fly high in the blue sky holding the ends of a wooden stick in their "
+                              "beaks, the green tortoise hangs from the middle of the stick by his mouth, a tiny "
+                              "village far below",
+                    "prop": "a long wooden stick",
+                    "closeups": {"kachhua": "hanging from a wooden stick by his mouth high in the blue sky, clouds around",
+                                 "hans": "two white swans flying in the blue sky, each holding one end of a wooden stick"},
+                    "wide": "two swans flying on the left and right holding a stick, small tortoise hanging from "
+                            "its middle, tiny village far below"},
+                4: {"action": "high in the sky the tortoise opens his mouth to talk and lets go of the stick, "
+                              "the two flying swans look back at him in surprise",
+                    "prop": "a long wooden stick",
+                    "closeups": {"kachhua": "falling through the sky with his mouth wide open, letting go of a wooden stick",
+                                 "hans": "two flying white swans looking back down in surprise, holding a stick"},
+                    "wide": "two surprised swans high up on the right, small tortoise falling on the left"},
+                5: {"action": "the green tortoise has landed softly on his back in thick green grass in a meadow, "
+                              "dizzy but unhurt, the two white swans landing gently next to him",
+                    "closeups": {"kachhua": "lying on his back in thick soft green grass, dizzy but smiling",
+                                 "hans": "two white swans landing gently on green grass, wings open"},
+                    "wide": "tortoise on his back in the grass on the left, two swans landing on the right"},
+                6: {"action": "the tortoise sits up in the meadow with a shy smile, promising to talk less, the "
+                              "two white swans smile kindly at him",
+                    "closeups": {"kachhua": "sitting up in a green meadow with a shy, sorry smile",
+                                 "hans": "two white swans smiling kindly in a green meadow"},
+                    "wide": "tortoise sitting in the meadow on the left, two swans on the right"},
             },
             "lines": [
                 (N, "एक तालाब में एक बातूनी कछुआ रहता था। उसके दोस्त थे दो हंस।",

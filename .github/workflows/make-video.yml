@@ -48,7 +48,7 @@ env:
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 300   # SDXL Turbo on the CPU is slow (a few minutes per picture)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -72,7 +72,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.cache/huggingface
-          key: hf-sd-turbo-fp16-v1
+          key: hf-sdxl-turbo-fp16-v1
       - name: Restore rembg model
         uses: actions/cache/restore@v4
         with:

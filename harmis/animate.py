@@ -529,17 +529,40 @@ def fallback_picture(shot, visuals, script, theme, layout, drawn):
     return frame.resize((layout.bg_w, layout.bg_h), Image.BICUBIC)
 
 
-def shot_spans(segments, shots, total, line_count):
-    """[{start, end, shot}]: a new span whenever the picture changes."""
+def shot_spans(segments, shots, total, line_count, closeups=None, script=None):
+    """[{start, end, key}]: a new span whenever the picture changes.
+
+    key is (shot index, "") for a whole-scene picture. A shot that was drawn as close-ups
+    (closeups[shot index] = [character ids]) shows the close-up of whoever speaks; narrator
+    lines take turns between them (a long narrator line is split in two).
+    """
+    closeups = closeups or {}
     shot_of_line = {n: shot["index"] for shot in shots for n in shot["lines"]}
-    spans = []
+    name_to_id = {c["name"]: c["id"] for c in (script or {}).get("characters", [])}
+    pieces, turn = [], {}
     for number, seg in enumerate(segments):
         shot = shot_of_line.get(number % max(1, line_count), 0)  # rhymes repeat their lines
-        if not spans or spans[-1]["shot"] != shot:
+        ids = closeups.get(shot)
+        if not ids:
+            pieces.append((seg["start"], (shot, "")))
+            continue
+        speaker = name_to_id.get(seg["speaker"])
+        if speaker in ids:
+            pieces.append((seg["start"], (shot, speaker)))
+            continue
+        first = turn.get(shot, 0)
+        pieces.append((seg["start"], (shot, ids[first % len(ids)])))
+        if seg["end"] - seg["start"] > 4.0:  # long narration: show the other character halfway
+            pieces.append(((seg["start"] + seg["end"]) / 2, (shot, ids[(first + 1) % len(ids)])))
+            first += 1
+        turn[shot] = first + 1
+    spans = []
+    for start, key in pieces:
+        if not spans or spans[-1]["key"] != key:
             if spans:
-                spans[-1]["end"] = seg["start"]
-            spans.append({"start": 0.0 if not spans else seg["start"], "end": total, "shot": shot})
-    return spans or [{"start": 0.0, "end": total, "shot": 0}]
+                spans[-1]["end"] = start
+            spans.append({"start": 0.0 if not spans else start, "end": total, "key": key})
+    return spans or [{"start": 0.0, "end": total, "key": (0, "")}]
 
 
 def make_video(script, voiced_lines, out_path, visuals, work_dir):
@@ -554,7 +577,9 @@ def make_video(script, voiced_lines, out_path, visuals, work_dir):
     segments, total = build_timeline(voiced_lines, fmt)
     end_start = segments[-1]["end"] + GAP if segments else layout.intro
     shots = visuals["shot_plan"]
-    spans = shot_spans(segments, shots, total, len(script["lines"]))
+    closeups = {shot["index"]: list(picture) for shot, picture in zip(shots, visuals["shots"])
+                if isinstance(picture, dict)}
+    spans = shot_spans(segments, shots, total, len(script["lines"]), closeups, script)
     span_starts = [span["start"] for span in spans]
     seg_starts = [seg["start"] for seg in segments]
 
@@ -568,9 +593,13 @@ def make_video(script, voiced_lines, out_path, visuals, work_dir):
     drawn = draw_background(theme, layout).resize((layout.bg_w, layout.bg_h), Image.BILINEAR)
     bases = {}
     for shot, picture in zip(shots, visuals["shots"]):
-        bases[shot["index"]] = (ImageOps.fit(picture, (layout.bg_w, layout.bg_h), Image.LANCZOS)
-                                if picture is not None else
-                                fallback_picture(shot, visuals, script, theme, layout, drawn))
+        if isinstance(picture, dict):  # close-ups, one per character
+            for key, image in picture.items():
+                bases[(shot["index"], key)] = ImageOps.fit(image, (layout.bg_w, layout.bg_h), Image.LANCZOS)
+        else:
+            bases[(shot["index"], "")] = (ImageOps.fit(picture, (layout.bg_w, layout.bg_h), Image.LANCZOS)
+                                          if picture is not None else
+                                          fallback_picture(shot, visuals, script, theme, layout, drawn))
     on_pictures = any(p is not None for p in visuals["shots"])
 
     # ----- text and cards -----
@@ -590,8 +619,8 @@ def make_video(script, voiced_lines, out_path, visuals, work_dir):
         badge_pos = (layout.w - (badge.width if badge else 0) - 30, 330 if on_pictures else 40)
     else:
         title = end_card = None
-        intro_card = render_intro_card(bases[spans[0]["shot"]], script["title"], script.get("tagline", ""), theme, layout)
-        outro_card = render_end_card(bases[spans[-1]["shot"]], lang, theme, layout)
+        intro_card = render_intro_card(bases[spans[0]["key"]], script["title"], script.get("tagline", ""), theme, layout)
+        outro_card = render_end_card(bases[spans[-1]["key"]], lang, theme, layout)
         badge_pos = (layout.w - (badge.width if badge else 0) - 30, 30)
 
     def current_segment(t):
@@ -604,11 +633,11 @@ def make_video(script, voiced_lines, out_path, visuals, work_dir):
         span = spans[index]
         # The camera keeps moving through the crossfade, so nothing ever stands still.
         length = max(0.1, span["end"] - span["start"] + FADE)
-        frame = ken_burns(bases[span["shot"]], min(1.0, max(0.0, (t - span["start"]) / length)), index, layout)
+        frame = ken_burns(bases[span["key"]], min(1.0, max(0.0, (t - span["start"]) / length)), index, layout)
         if index > 0 and t - span["start"] < FADE:  # crossfade from the previous shot
             previous = spans[index - 1]
             length = max(0.1, previous["end"] - previous["start"] + FADE)
-            before = ken_burns(bases[previous["shot"]], min(1.0, (t - previous["start"]) / length), index - 1, layout)
+            before = ken_burns(bases[previous["key"]], min(1.0, (t - previous["start"]) / length), index - 1, layout)
             mix = (t - span["start"]) / FADE
             frame = Image.blend(before, frame, mix * mix * (3 - 2 * mix))
         return frame

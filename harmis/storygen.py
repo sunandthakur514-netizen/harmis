@@ -106,14 +106,20 @@ def story_prompt(theme_name, fmt, library, avoid, feedback=""):
           "so an illustrator draws them the same in every picture.\n"
           'Every scene has a "place" (English, the location only, no people or animals in it), an "action" '
           "(English, what the picture shows: which characters are there and what they are DOING, pose and "
-          'expression) and its "lines" (speaker "Narrator" or a character name, text in Hindi).\n'
+          'expression), a "prop" (English: the one object the story needs visible in this picture, for '
+          'example "a wooden stick held in the beak", or ""), "closeups" (for every character in the '
+          'picture, by name: what ONLY that character is doing, without mentioning the others), "wide" '
+          '(English: the same moment with each character\'s place, e.g. "small tortoise on a rock on the '
+          'left, two swans flying far right") and its "lines" (speaker "Narrator" or a character name, '
+          'text in Hindi).\n'
         + ("It is a song: every line rhymes with the next one and one catchy line repeats.\n" if rhyme else
            'The very last line is the Narrator giving the moral, starting with "सीख:".\n')
         + (f"Do NOT reuse any of these titles or their plots: {', '.join(sorted(avoid)[:60])}.\n" if avoid else "")
         + (f"Your previous answer had these problems, fix them: {feedback}\n" if feedback else "")
         + 'Reply with ONLY JSON: {"id": "short_english_slug", "title": "Hindi title", "moral": "Hindi moral", '
           '"characters": [{"name": "...", "label": "...", "gender": "m", "age": "child", "type": "human", '
-          '"look": "..."}], "scenes": [{"place": "...", "action": "...", "lines": [{"speaker": "Narrator", '
+          '"look": "..."}], "scenes": [{"place": "...", "action": "...", "prop": "...", "closeups": {"Name": "..."}, '
+          '"wide": "...", "lines": [{"speaker": "Narrator", '
           '"text": "..."}]}]}'
     )
 
@@ -216,7 +222,13 @@ def to_sample(data, theme_name, fmt, library):
         scene_name = f"{story_id}_s{number:02d}"
         new_scenes[scene_name] = " ".join(str(scene["place"]).split())
         scene_marks[len(lines)] = scene_name
-        actions[len(lines)] = " ".join(str(scene["action"]).split())
+        closeups = {}
+        for who, doing in (scene.get("closeups") or {}).items():
+            if str(who).strip() and str(doing).strip():
+                closeups[character_for(str(who).strip())[0]] = " ".join(str(doing).split())
+        actions[len(lines)] = {"action": " ".join(str(scene["action"]).split()),
+                               "prop": " ".join(str(scene.get("prop") or "").split()),
+                               "closeups": closeups, "wide": " ".join(str(scene.get("wide") or "").split())}
         for line in scene.get("lines", []):
             text = " ".join(str(line.get("text", "")).split())
             if not text:
