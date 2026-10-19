@@ -1,8 +1,9 @@
 {
   "short": {
-    "story": "monkey_crocodile",
-    "date": "2026-10-19T19:22+05:30",
+    "story": "kabutar_jaal",
+    "date": "2026-10-20T00:32+05:30",
     "published": [
+      "kabutar_jaal",
       "monkey_crocodile",
       "talkative_tortoise"
     ]
@@ -11,6 +12,9 @@
     "2026-10-19": [
       "moral",
       "mythology"
+    ],
+    "2026-10-20": [
+      "kids_comedy"
     ]
   },
   "mythology": {
