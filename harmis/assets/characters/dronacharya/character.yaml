@@ -1,0 +1,12 @@
+# Guru Drona - mythology for kids (shown with love and respect)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Dronacharya              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: गुरु द्रोणाचार्य
+  english: Guru Drona
+gender: m               # m / f (picks the voice)
+age: old            # child / adult / old
+type: human             # human / animal
+seed: 1411              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  Guru Dronacharya as a wise old teacher with a long white beard, a saffron robe, a sacred thread and a calm serious face

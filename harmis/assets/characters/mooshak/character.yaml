@@ -1,0 +1,12 @@
+# Mouse - mythology for kids (shown with love and respect)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Mooshak              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: मूषक राज
+  english: Mouse
+gender: m               # m / f (picks the voice)
+age: child            # child / adult / old
+type: animal             # human / animal
+seed: 1415              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  Ganesha's little mouse, a small round grey mouse with a tiny red cloth and a cheerful face

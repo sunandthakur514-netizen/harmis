@@ -1,0 +1,12 @@
+# Lord Ram - mythology for kids (shown with love and respect)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Ram              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: श्री राम
+  english: Lord Ram
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+type: human             # human / animal
+seed: 1402              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  Lord Ram as a gentle young prince with soft blue-green skin, a calm kind smile, a golden crown, a yellow silk dhoti, holding a bow resting on his shoulder

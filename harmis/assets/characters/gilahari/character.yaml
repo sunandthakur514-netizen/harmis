@@ -1,0 +1,12 @@
+# Squirrel - mythology for kids (shown with love and respect)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Gilahari              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: गिलहरी
+  english: Squirrel
+gender: f               # m / f (picks the voice)
+age: child            # child / adult / old
+type: animal             # human / animal
+seed: 1407              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  a tiny cheerful Indian palm squirrel with three white stripes on its back, a bushy tail and big shining eyes

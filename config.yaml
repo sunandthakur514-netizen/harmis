@@ -316,6 +316,109 @@ themes:
     fallback_sources: [Akbar-Birbal, Tenali Raman]
     mood: bright warm palace light
 
+# ---------------------------------------------------------------------------
+# Mythology for kids (theme "mythology", harmis/mythology.py)
+#   Every day 2 shorts are mythology (the 2nd and 4th short of the day, counted in
+#   India time); on Wednesday every short is. The topics below take turns, so the
+#   same deity / epic never comes twice in a row, and each topic's episodes take
+#   turns too. Gemini retells the traditional episode faithfully for kids.
+#   ending:   the closing line spoken after the moral
+#   title_en: English part of the YouTube title ("... | Krishna Story for Kids")
+# ---------------------------------------------------------------------------
+mythology:
+  short_slots: [1, 3]         # which shorts of the day (0 = first) are mythology
+  all_day: [2]                # weekdays when every short is mythology (2 = Wednesday)
+  topics:
+    krishna:
+      title_en: Krishna Story for Kids
+      characters: [bal_krishna, yashoda]
+      episodes: ["Bal Krishna the makhan chor (butter thief) and Mother Yashoda",
+                 "Krishna and the Kaliya naag in the Yamuna (Krishna dances on Kaliya, who says sorry and leaves the river)",
+                 "Krishna lifts the Govardhan hill to shelter the people of Gokul from the rain"]
+      ending: "जय श्री कृष्ण!"
+      hashtags: ["#KrishnaStory", "#BalKrishna", "#KrishnaLeela"]
+    ganesha:
+      title_en: Ganesh Story for Kids
+      characters: [bal_ganesha, mooshak, kartikeya, shiva, parvati]
+      episodes: ["Little Ganesha's love for modaks",
+                 "How the little mouse Mooshak became Ganesha's friend and vahan",
+                 "Ganesha and Kartikeya's race around the world (Ganesha goes around his parents)"]
+      ending: "गणपति बप्पा मोरया!"
+      hashtags: ["#GaneshStory", "#BalGanesh", "#GanpatiBappa"]
+    hanuman:
+      title_en: Hanuman Story for Kids
+      characters: [bal_hanuman, ram, lakshman]
+      episodes: ["Little Hanuman thinks the rising sun is a sweet mango and leaps towards it",
+                 "Hanuman brings the Sanjeevani mountain to heal Lakshman"]
+      ending: "जय बजरंगबली! जय हनुमान!"
+      hashtags: ["#HanumanStory", "#BalHanuman", "#Bajrangbali"]
+    ramayana:
+      title_en: Ramayana Story for Kids
+      characters: [ram, sita, lakshman, bharat, shabari, gilahari]
+      episodes: ["Shabari's sweet berries for Shri Ram",
+                 "The little squirrel who helped build the Ram Setu bridge",
+                 "Bharat carries Shri Ram's paduka (sandals) back to Ayodhya with love",
+                 "Ram, Sita and Lakshman go to the forest to keep their father's promise"]
+      ending: "जय श्री राम!"
+      hashtags: ["#RamayanaForKids", "#ShriRam", "#RamKatha"]
+    mahabharata:
+      title_en: Mahabharata Story for Kids
+      characters: [arjun, bhima, ekalavya, dronacharya]
+      episodes: ["Arjun sees only the bird's eye in Guru Drona's test",
+                 "Strong Bhima meets an old monkey whose tail he cannot lift and learns humility",
+                 "Ekalavya learns archery by practising in front of a clay statue of his guru (told gently)"]
+      ending: "जय श्री कृष्ण!"
+      hashtags: ["#MahabharataForKids", "#Arjun", "#Mahabharat"]
+    shiva_parvati:
+      title_en: Shiva Parvati Story for Kids
+      characters: [shiva, parvati, kartikeya, bal_ganesha]
+      episodes: ["Lord Shiva holds the poison in his throat to protect the world and becomes Neelkanth (told gently)",
+                 "Kartikeya and his peacock, and the family on Mount Kailash",
+                 "Mother Parvati's love and how little Ganesha came to guard her door (told gently, no fighting)"]
+      ending: "हर हर महादेव!"
+      hashtags: ["#ShivaStory", "#Mahadev", "#ShivParvati"]
+    prahlad:
+      title_en: Prahlad Story for Kids
+      characters: [prahlad, narad]
+      episodes: ["Little Prahlad's faith in Lord Vishnu never breaks",
+                 "Prahlad stays safe in the fire while Holika's boon fails - the story of Holi (told gently)"]
+      ending: "ॐ नमो नारायणाय!"
+      hashtags: ["#PrahladStory", "#HoliKiKahani", "#Bhakt"]
+    dhruv:
+      title_en: Dhruv Tara Story for Kids
+      characters: [dhruv, narad]
+      episodes: ["Little Dhruv's tapasya and how he became the Pole Star (Dhruv Tara)"]
+      ending: "ॐ नमो भगवते वासुदेवाय!"
+      hashtags: ["#DhruvTara", "#DhruvStory"]
+    shravan:
+      title_en: Shravan Kumar Story for Kids
+      characters: [shravan]
+      episodes: ["Shravan Kumar carries his old parents on a pilgrimage in a kaavad (only the pilgrimage, a story of serving parents)"]
+      ending: "जय श्री राम!"
+      hashtags: ["#ShravanKumar", "#ParentsLove"]
+    nachiketa:
+      title_en: Nachiketa Story for Kids
+      characters: [nachiketa, yamraj]
+      episodes: ["Curious Nachiketa's patience and his three wishes from the wise Yamraj (told simply, about truth and learning)"]
+      ending: "सत्यमेव जयते!"
+      hashtags: ["#Nachiketa", "#UpanishadStory"]
+    sudama:
+      title_en: Krishna Sudama Story for Kids
+      characters: [krishna_raja, sudama]
+      episodes: ["Poor Sudama visits his childhood friend Krishna in Dwarka with a little bundle of rice"]
+      ending: "जय श्री कृष्ण!"
+      hashtags: ["#KrishnaSudama", "#Friendship", "#KrishnaStory"]
+  hashtags: ["#MythologyForKids", "#HinduMythology", "#BhaktiKahani"]
+  rules: >-
+    Retell the traditional story faithfully and respectfully for children aged 4-10: keep the core
+    events exactly as tradition tells them (do not invent new events or change the outcome), use
+    simple Hindi, and end with a clear moral. Show every deity with love and respect: no jokes about
+    deities, no mocking, nothing silly about them. No violence detail: if the tradition has a fight,
+    a death or a curse, mention it only gently in one short sentence without describing it.
+    Deities look like cute, respectful, child-friendly 3D cartoon characters in their traditional
+    look (Krishna: blue skin, peacock feather, flute; Ganesha: elephant head, modak; Hanuman: monkey
+    face, gada, orange colour; Shiva: blue skin, crescent moon, trident).
+
 storygen:
   model: gemini-2.5-flash
   tries: 3
@@ -365,7 +468,7 @@ publish:
     by_theme:                 # stories written for a weekday theme
       moral: ["#MoralStory", "#PanchatantraStyle", "#JungleKiKahani"]
       kids_comedy: ["#FunnyKidsStory", "#ChintuGolu", "#MazedarKahani", "#KidsComedy"]
-      mythology: ["#KrishnaStory", "#HanumanStory", "#GaneshaStory", "#BalKrishna", "#MythologyForKids"]
+      mythology: []           # per topic: see mythology: topics: hashtags (+ mythology: hashtags)
       fairy_tale: ["#PariKiKahani", "#FairyTale", "#JaaduiKahani", "#MagicStory"]
       mystery: ["#DetectiveStory", "#JasoosKahani", "#MysteryForKids", "#KidsDetective"]
       science: ["#ScienceForKids", "#SpaceStory", "#VigyanKahani", "#LearnWithFun"]

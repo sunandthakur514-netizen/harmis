@@ -100,7 +100,11 @@ DEITY_TAGS = {"#krishnastory": ("कृष्ण", "krishna"), "#balkrishna": ("
 
 
 def theme_tags(meta, tags_cfg):
-    """Hashtags for the weekday theme (config.yaml -> publish: hashtags: by_theme)."""
+    """Hashtags for the weekday theme (config.yaml -> publish: hashtags: by_theme); mythology
+    stories get their topic's tags (#KrishnaStory ...) and the common mythology ones."""
+    topic = CONFIG.get("mythology", {}).get("topics", {}).get(meta.get("topic") or "")
+    if topic:
+        return list(topic.get("hashtags", [])) + list(CONFIG["mythology"].get("hashtags", []))
     tags = list(tags_cfg.get("by_theme", {}).get(meta.get("theme") or "", []))
     about = " ".join([str(meta.get("title", ""))] + [str(c) for c in meta.get("characters", [])]).lower()
     return [t for t in tags if t.lower() not in DEITY_TAGS or any(w in about for w in DEITY_TAGS[t.lower()])]
@@ -212,6 +216,8 @@ def make_captions(video_path, use_ai=True, save=True):
     title = text["title"]
     if story_title and story_title not in title:  # the story title is always in the title
         title = fit(f"{story_title} | {title}", TITLE_MAX)
+    if meta.get("title_en"):  # mythology: "बाल कृष्ण और माखन चोरी | Krishna Story for Kids"
+        title = fit(f"{story_title} | {meta['title_en']}", TITLE_MAX)
     description = strip_removed_tags(text["description"])
     youtube_title = title
     if meta.get("format") == "short" and "#shorts" not in title.lower():
@@ -230,6 +236,7 @@ def make_captions(video_path, use_ai=True, save=True):
         "lang": meta.get("lang", "hindi"),
         "source": meta.get("source", ""),
         "theme": meta.get("theme", ""),
+        "topic": meta.get("topic", ""),
         "youtube": {
             "title": youtube_title,
             "description": fit(description + "\n\n" + " ".join(youtube_tags), 4900),

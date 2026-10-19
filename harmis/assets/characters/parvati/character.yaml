@@ -1,0 +1,12 @@
+# Mother Parvati - mythology for kids (shown with love and respect)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Parvati              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: माता पार्वती
+  english: Mother Parvati
+gender: f               # m / f (picks the voice)
+age: adult            # child / adult / old
+type: human             # human / animal
+seed: 1413              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  Mother Parvati as a loving goddess in a red and gold saree, a golden crown, gentle eyes and a warm motherly smile

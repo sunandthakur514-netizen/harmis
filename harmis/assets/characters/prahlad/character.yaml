@@ -1,0 +1,12 @@
+# Prahlad - mythology for kids (shown with love and respect)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Prahlad              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: प्रह्लाद
+  english: Prahlad
+gender: m               # m / f (picks the voice)
+age: child            # child / adult / old
+type: human             # human / animal
+seed: 1416              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  young Prahlad as a calm devoted boy with folded hands, a yellow dhoti, a tilak on his forehead and a peaceful smile

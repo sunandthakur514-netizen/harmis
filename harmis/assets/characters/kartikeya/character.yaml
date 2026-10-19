@@ -1,0 +1,12 @@
+# Kartikeya - mythology for kids (shown with love and respect)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Kartikeya              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: कार्तिकेय
+  english: Kartikeya
+gender: m               # m / f (picks the voice)
+age: child            # child / adult / old
+type: human             # human / animal
+seed: 1414              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  young Kartikeya as a bright brave boy with a small golden crown, a red dhoti, a little spear (vel) and a beautiful peacock beside him

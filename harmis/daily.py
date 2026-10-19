@@ -60,7 +60,8 @@ def youtube_rows():
 def published_stories():
     """Story ids already uploaded to YouTube."""
     done = {row.get("story_id") for row in youtube_rows()}
-    for slot in load_state().values():  # uploads made before published.csv was committed
+    state = load_state()
+    for slot in (state.get("short", {}), state.get("long", {})):  # uploads made before published.csv was committed
         done |= set(slot.get("published", [])) | {slot.get("story")}
     done.discard(None)
     done.discard("")
@@ -121,17 +122,28 @@ def plan(shorts, longs, used=None, ai=None):
     if ai is None:
         ai = bool(os.environ.get("GEMINI_API_KEY"))
     if ai:
+        from . import mythology
         today = datetime.datetime.now(IST).weekday()
         weekdays = CONFIG["weekdays"]
-        return [{"theme": weekdays[(today + i) % 7][slot], "story": "", "format": slot}
-                for slot, count in (("short", shorts), ("long", longs)) for i in range(count)]
+        per_day = int(CONFIG.get("daily", {}).get("max_uploads_per_day", 5))
+        jobs = []
+        for i in range(shorts):  # shorts in groups of a day: 2 of every day's are mythology
+            day = (today + i // per_day) % 7
+            theme = "mythology" if mythology.is_mythology_short(i % per_day, day) else weekdays[day]["short"]
+            jobs.append({"theme": theme, "story": "", "format": "short"})
+        jobs += [{"theme": weekdays[(today + i) % 7]["long"], "story": "", "format": "long"} for i in range(longs)]
+        picks = iter(mythology.next_topics(sum(j["theme"] == "mythology" for j in jobs)))
+        for job in jobs:  # deities / epics in turn, never the same one twice in a row
+            topic, episode = next(picks) if job["theme"] == "mythology" else ("", "")
+            job.update(topic=topic, episode=episode)
+        return jobs
     used = used_stories() if used is None else used
     jobs = []
     for slot, count in (("short", shorts), ("long", longs)):
         free = [s for s in candidates(slot) if s not in used]
         if len(free) < count:
             print(f"[daily] Only {len(free)} unused {slot} stories left (asked for {count}).", file=sys.stderr)
-        jobs += [{"story": story, "theme": "", "format": slot} for story in free[:count]]
+        jobs += [{"story": story, "theme": "", "topic": "", "episode": "", "format": slot} for story in free[:count]]
     return jobs
 
 

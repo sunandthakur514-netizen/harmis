@@ -245,6 +245,8 @@ def build_sample(sample, genre, lang, library, fmt="short"):
         "id": sample["id"],
         "source": sample.get("source", ""),
         "theme": sample.get("theme", ""),
+        "topic": sample.get("topic", ""),
+        "title_en": sample.get("title_en", ""),
         "mood": sample.get("mood", ""),
         "title": sample["title"][lang],
         "tagline": sample.get("tagline", TAGLINE[genre])[lang] if fmt == "long" else "",

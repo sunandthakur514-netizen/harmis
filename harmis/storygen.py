@@ -77,11 +77,18 @@ def _ask(prompt, temperature=1.0):
     return json.loads(text.strip().removeprefix("```json").removeprefix("```").removesuffix("```"))
 
 
-def story_prompt(theme_name, fmt, library, avoid, feedback=""):
+def story_prompt(theme_name, fmt, library, avoid, feedback="", topic=None, episode=None):
     theme = CONFIG["themes"][theme_name]
     words, lines, scenes = (settings()[k][fmt] for k in ("words", "lines", "scenes"))
-    must = [library.characters[c] for c in theme.get("characters", []) if c in library.characters]
-    may = [library.characters[c] for c in theme.get("allowed", []) if c in library.characters]
+    must_ids, may_ids = theme.get("characters", []), theme.get("allowed", [])
+    if topic:  # mythology: the topic's own characters, the main deity / hero must appear
+        info = CONFIG["mythology"]["topics"][topic]
+        must_ids, may_ids = info["characters"][:1], info["characters"][1:]
+        theme = {**theme, "brief": (
+            f"the traditional story \"{episode}\" as a gentle story for children. "
+            + " ".join(CONFIG["mythology"]["rules"].split()))}
+    must = [library.characters[c] for c in must_ids if c in library.characters]
+    may = [library.characters[c] for c in may_ids if c in library.characters]
     cast = "\n".join(f'- {d["name"]} ({d["label"]["hindi"]}): {" ".join(d["description"].split())}'
                      for d in must + may)
     rhyme = theme["genre"] == "kids_rhyme"
@@ -124,7 +131,7 @@ def story_prompt(theme_name, fmt, library, avoid, feedback=""):
     )
 
 
-def problems(data, theme_name, fmt, library, avoid):
+def problems(data, theme_name, fmt, library, avoid, topic=None):
     """What is wrong with a story from Gemini ([] = it can be used)."""
     found = []
     theme = CONFIG["themes"][theme_name]
@@ -154,7 +161,8 @@ def problems(data, theme_name, fmt, library, avoid):
         found.append(f"these speakers are not in the characters list: {', '.join(unknown)}")
     if len(speakers) > MAX_CHARACTERS[fmt]:
         found.append(f"at most {MAX_CHARACTERS[fmt]} speaking characters besides the Narrator")
-    for char_id in theme.get("characters", []):
+    required = CONFIG["mythology"]["topics"][topic]["characters"][:1] if topic else theme.get("characters", [])
+    for char_id in required:
         name = library.characters[char_id]["name"]
         if name.lower() not in {s.lower() for s in speakers}:
             found.append(f"{name} must be one of the speaking characters")
@@ -192,7 +200,7 @@ def slug(text):
     return re.sub(r"[^a-z0-9]+", "_", str(text).lower()).strip("_")[:30] or "story"
 
 
-def to_sample(data, theme_name, fmt, library):
+def to_sample(data, theme_name, fmt, library, topic=None):
     theme = CONFIG["themes"][theme_name]
     title = str(data["title"]).strip()
     story_id = f"ai_{slug(data.get('id') or title)}_{zlib.crc32(title.encode()) % 10000:04d}"
@@ -241,12 +249,16 @@ def to_sample(data, theme_name, fmt, library):
                 if char_id not in cast:
                     cast.append(char_id)
             lines.append((speaker, text))
+    ending = CONFIG["mythology"]["topics"][topic]["ending"] if topic else ""
+    if ending and norm_title(ending) not in norm_title(lines[-1][1] if lines else ""):
+        lines.append((NARRATOR, ending))  # "जय श्री कृष्ण!" after the moral
     return {
         "id": story_id, "title": {"hindi": title}, "tagline": {"hindi": theme["label"]["hindi"]},
         "source": "", "theme": theme_name, "genre": theme["genre"], "format": fmt, "mood": theme.get("mood", ""),
         "moral": str(data.get("moral", "")).strip(), "characters": cast, "scenes": scene_marks,
         "actions": actions, "lines": lines, "new_characters": new_characters, "new_scenes": new_scenes,
-        "made_by": "gemini",
+        "made_by": "gemini", "topic": topic or "",
+        "title_en": CONFIG["mythology"]["topics"][topic]["title_en"] if topic else "",
     }
 
 
@@ -273,7 +285,7 @@ def load_story_file(path, library):
     return sample
 
 
-def generate(theme_name, fmt, library, tries=None):
+def generate(theme_name, fmt, library, tries=None, topic=None, episode=None):
     """A checked, new story from Gemini in the samples format, or None."""
     if not os.environ.get("GEMINI_API_KEY"):
         print("[storygen] No GEMINI_API_KEY: cannot write a new story.", file=sys.stderr)
@@ -282,15 +294,15 @@ def generate(theme_name, fmt, library, tries=None):
     feedback = ""
     for attempt in range(1, int(tries or settings().get("tries", 3)) + 1):
         try:
-            data = _ask(story_prompt(theme_name, fmt, library, avoid, feedback))
+            data = _ask(story_prompt(theme_name, fmt, library, avoid, feedback, topic, episode))
         except Exception as error:
             print(f"[storygen] try {attempt}: Gemini failed ({type(error).__name__}: "
                   f"{' '.join(str(error).split())[:120]})", file=sys.stderr)
             feedback = ""
             continue
-        found = problems(data, theme_name, fmt, library, avoid)
+        found = problems(data, theme_name, fmt, library, avoid, topic)
         if not found:
-            sample = to_sample(data, theme_name, fmt, library)
+            sample = to_sample(data, theme_name, fmt, library, topic)
             if settings().get("review", True):
                 try:
                     ok, reason = review(sample)
@@ -326,16 +338,27 @@ def main():
     parser.add_argument("--theme", choices=sorted(CONFIG["themes"]), help="default: today's theme (weekday, IST)")
     parser.add_argument("--out", default=os.path.join(PROJECT_DIR, "cache", "story.json"))
     parser.add_argument("--no-gemini", action="store_true", help="only use built-in stories")
+    parser.add_argument("--topic", choices=sorted(CONFIG["mythology"]["topics"]),
+                        help="mythology topic (default: the next one in turn)")
+    parser.add_argument("--episode", help="mythology episode (default: the topic's next one)")
     args = parser.parse_args()
-    from . import daily
+    from . import daily, mythology
     from .library import Library
     from .providers import ImageChain
     slot = daily.auto_slot() if args.slot == "auto" else args.slot
     theme_name = args.theme or theme_for(slot)
+    if not args.theme and slot == "short":  # 2 shorts a day (all on Wednesday) are mythology
+        theme_name = mythology.short_theme(theme_name)
+    topic, episode = args.topic, args.episode
+    if theme_name == "mythology" and not topic:
+        topic, episode = mythology.next_topics(1)[0]
+    elif topic and not episode:
+        episode = CONFIG["mythology"]["topics"][topic]["episodes"][0]
     theme = CONFIG["themes"][theme_name]
-    print(f"[storygen] {slot} video, theme {theme_name} ({theme['label']['english']})", file=sys.stderr)
+    print(f"[storygen] {slot} video, theme {theme_name} ({theme['label']['english']})"
+          + (f", {topic}: {episode}" if topic else ""), file=sys.stderr)
     library = Library(ImageChain([]), CONFIG["defaults"]["style"], theme["genre"], fmt=slot)
-    sample = None if args.no_gemini else generate(theme_name, slot, library)
+    sample = None if args.no_gemini else generate(theme_name, slot, library, topic=topic, episode=episode)
     if sample is not None:
         os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
         with open(args.out, "w", encoding="utf-8") as file:
@@ -346,7 +369,7 @@ def main():
         result = ({"args": f"--story {story} --format {slot}", "story": story, "source": "built-in"} if story
                   else {"args": "", "story": "none", "source": "none"})
         print(f"[storygen] Using {result['source']} story: {story}", file=sys.stderr)
-    print(json.dumps({**result, "theme": theme_name, "slot": slot}, ensure_ascii=False))
+    print(json.dumps({**result, "theme": theme_name, "slot": slot, "topic": topic or ""}, ensure_ascii=False))
 
 
 if __name__ == "__main__":

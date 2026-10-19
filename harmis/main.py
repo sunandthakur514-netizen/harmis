@@ -49,7 +49,7 @@ def save_story_meta(story, video_path, length, style):
         "title": story["title"], "story_id": story.get("id", ""), "genre": story["genre"],
         "lang": story["lang"], "format": story.get("format", "short"), "style": style,
         "source": story.get("source", ""), "tagline": story.get("tagline", ""),
-        "theme": story.get("theme", ""),
+        "theme": story.get("theme", ""), "topic": story.get("topic", ""), "title_en": story.get("title_en", ""),
         "characters": [c["label"] for c in story["characters"]],
         "summary": narrator_lines[0] if narrator_lines else story["lines"][0]["text"],
         "moral": moral, "duration": round(length, 1),

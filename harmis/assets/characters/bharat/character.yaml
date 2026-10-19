@@ -1,0 +1,12 @@
+# Bharat - mythology for kids (shown with love and respect)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Bharat              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: भरत
+  english: Bharat
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+type: human             # human / animal
+seed: 1405              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  Bharat as a humble young prince in simple saffron clothes, a gentle face, holding a pair of wooden sandals (paduka) with respect

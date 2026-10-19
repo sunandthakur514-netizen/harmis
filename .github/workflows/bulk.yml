@@ -63,7 +63,17 @@ jobs:
           COUNT=$(python -c 'import json; print(len(json.load(open("jobs.json"))))')
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
           echo "### $COUNT videos to make" >> "$GITHUB_STEP_SUMMARY"
-          python -c 'import json; [print("-", j["format"] + ":", j["story"] or "new " + j["theme"] + " story") for j in json.load(open("jobs.json"))]' >> "$GITHUB_STEP_SUMMARY"
+          python -c 'import json; [print("-", j["format"] + ":", j["story"] or "new " + j["theme"] + " story", j.get("topic", "")) for j in json.load(open("jobs.json"))]' >> "$GITHUB_STEP_SUMMARY"
+      - name: Remember the mythology rotation
+        if: steps.plan.outputs.count != '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/daily.json 2>/dev/null || true
+          if ! git diff --cached --quiet; then
+            git commit -m "bulk: mythology rotation [skip ci]"
+            for i in 1 2 3; do git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && break; sleep 5; done
+          fi
       - name: Make sure the queue release exists
         if: steps.plan.outputs.count != '0'
         run: python -c "from harmis.upload_queue import Queue; Queue().release(create=True)"
@@ -136,7 +146,9 @@ jobs:
           LANG_=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("lang", "hindi"))')
           STYLE=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("style", "3d_cartoon"))')
           if [ -n "${{ matrix.job.theme }}" ]; then
-            RESULT=$(python -m harmis.storygen --theme "${{ matrix.job.theme }}" --format "${{ matrix.job.format }}" --out cache/story.json)
+            TOPIC_ARGS=""
+            if [ -n "${{ matrix.job.topic }}" ]; then TOPIC_ARGS="--topic ${{ matrix.job.topic }}"; fi
+            RESULT=$(python -m harmis.storygen --theme "${{ matrix.job.theme }}" --format "${{ matrix.job.format }}" $TOPIC_ARGS --episode "${{ matrix.job.episode }}" --out cache/story.json)
             echo "$RESULT"
             STORY_ARGS=$(python -c "import json,sys; print(json.loads(sys.argv[1])['args'])" "$RESULT")
             if [ -z "$STORY_ARGS" ]; then echo "::error::No story available for this job."; exit 1; fi

@@ -1,0 +1,12 @@
+# Shabari - mythology for kids (shown with love and respect)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Shabari              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: शबरी
+  english: Shabari
+gender: f               # m / f (picks the voice)
+age: old            # child / adult / old
+type: human             # human / animal
+seed: 1406              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  Shabari as a kind old forest woman in a simple white saree, grey hair, a warm smile, holding a small basket of berries

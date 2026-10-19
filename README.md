@@ -459,7 +459,7 @@ Hindi story** written by Gemini for the day's theme (India time, `weekdays:` and
 |---|---|---|
 | Mon | Panchatantra / Jataka style moral fable | #MoralStory #PanchatantraStyle |
 | Tue | Kids comedy with the recurring friends **Chintu & Golu** | #FunnyKidsStory #ChintuGolu |
-| Wed | Mythology for kids: little Krishna, Hanuman, Ganesha (respectful) | #KrishnaStory #HanumanStory #GaneshaStory |
+| Wed | Mythology for kids (all shorts; 2 shorts every other day too, see below) | #KrishnaStory #HanumanStory #GaneshStory |
 | Thu | Pari / magic fairy tale | #PariKiKahani #FairyTale |
 | Fri | Little detective mystery (never scary) | #DetectiveStory #JasoosKahani |
 | Sat | Science / space adventure (one real fact) | #ScienceForKids #SpaceStory |
@@ -479,6 +479,31 @@ Hindi story** written by Gemini for the day's theme (India time, `weekdays:` and
   Mythology tags only name the deity who is in the story.
 - **No horror** on this channel: no theme uses it, and the built-in horror stories are
   never picked automatically.
+
+**Mythology for kids** (`mythology:` in `config.yaml`, `harmis/mythology.py`): every day
+**2 of the 5 shorts** are mythology (the 2nd and 4th short of the day); on **Wednesday all
+of them** are. The topics take turns so none comes twice in a row, and each topic's
+episodes take turns too:
+
+| Topic | Episodes (examples) | Ending line |
+|---|---|---|
+| Krishna leela | makhan chor, Kaliya naag, Govardhan | जय श्री कृष्ण! |
+| Ganesha | modak, Mooshak the mouse, race around the world | गणपति बप्पा मोरया! |
+| Hanuman | the sun as a mango, Sanjeevani | जय बजरंगबली! जय हनुमान! |
+| Ramayana | Shabari's berries, the squirrel and Ram Setu, Bharat's paduka | जय श्री राम! |
+| Mahabharata | Arjun and the bird's eye, Bhima's lesson, Ekalavya | जय श्री कृष्ण! |
+| Shiva-Parvati & Kartikeya | Neelkanth, Kartikeya's peacock | हर हर महादेव! |
+| Prahlad, Dhruv, Shravan Kumar, Nachiketa, Sudama-Krishna | one or two episodes each | matching line |
+
+Gemini is told to retell the traditional story **faithfully and respectfully** for children
+aged 4-10: simple Hindi, a clear moral, no jokes about deities, no changes to the core
+events, no violence detail. Deities and heroes have fixed, respectful 3D-cartoon looks in
+`harmis/assets/characters/` (Krishna: blue skin, peacock feather, flute; Ganesha: elephant
+head, modak; Hanuman: monkey face, gada, orange; Shiva, Parvati, Ram, Sita, Lakshman,
+Arjun, Prahlad, Dhruv and the others). After the moral the narrator says the deity's line
+(जय श्री कृष्ण! ...). Titles look like **"बाल कृष्ण और माखन चोरी | Krishna Story for Kids"**,
+with the topic's hashtags plus #MythologyForKids #HinduMythology #BhaktiKahani.
+Try one: `python -m harmis.storygen --theme mythology --topic hanuman --format short`.
 
 Try one by hand: `python -m harmis.storygen --theme mythology --format short --out cache/story.json`
 then `python -m harmis.main --story-file cache/story.json`.

@@ -1,0 +1,12 @@
+# Dhruv - mythology for kids (shown with love and respect)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Dhruv              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: ध्रुव
+  english: Dhruv
+gender: m               # m / f (picks the voice)
+age: child            # child / adult / old
+type: human             # human / animal
+seed: 1417              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  young Dhruv as a determined little prince in a simple saffron dhoti, a small crown, sitting with folded hands, a calm brave face

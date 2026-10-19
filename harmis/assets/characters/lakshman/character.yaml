@@ -1,0 +1,12 @@
+# Lakshman - mythology for kids (shown with love and respect)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Lakshman              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: लक्ष्मण
+  english: Lakshman
+gender: m               # m / f (picks the voice)
+age: adult            # child / adult / old
+type: human             # human / animal
+seed: 1404              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  Lakshman as a loyal young prince with fair skin, a golden crown, a saffron dhoti, a bow on his back and a brave caring face
