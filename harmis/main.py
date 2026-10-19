@@ -39,7 +39,7 @@ def output_path(out_dir, genre, lang, fmt):
     return path
 
 
-def save_story_meta(story, video_path, length, style):
+def save_story_meta(story, video_path, length, style, quality=None):
     """Save what the video is about as <video>.story.json (for captions and publishing)."""
     import json
     narrator_lines = [line["text"] for line in story["lines"] if line["speaker"] == script.NARRATOR]
@@ -52,7 +52,7 @@ def save_story_meta(story, video_path, length, style):
         "theme": story.get("theme", ""), "topic": story.get("topic", ""), "title_en": story.get("title_en", ""),
         "characters": [c["label"] for c in story["characters"]],
         "summary": narrator_lines[0] if narrator_lines else story["lines"][0]["text"],
-        "moral": moral, "duration": round(length, 1),
+        "moral": moral, "duration": round(length, 1), "quality": quality or {},
     }
     with open(os.path.splitext(video_path)[0] + ".story.json", "w", encoding="utf-8") as file:
         json.dump(meta, file, ensure_ascii=False, indent=2)
@@ -179,6 +179,11 @@ def main():
 
         # 3. Pictures (from the library cache, or made now by the image providers)
         visuals = library.load_visuals(story)
+        quality = {  # checked by harmis/make_short.py before anything is uploaded
+            "shots": len(visuals["shots"]),
+            "simple_shots": sum(1 for picture in visuals["shots"] if picture is None),
+            "voices": sorted({line.get("voice_engine", "") for line in voiced}),
+        }
         used = collections.Counter(chain.used.values())
         if used:
             print("[main] Pictures needed this run: " + ", ".join(
@@ -190,7 +195,7 @@ def main():
         path, length = animate.make_video(story, voiced, path, visuals, work_dir)
 
     # Story details + captions next to the video (used by `python -m harmis.publish`).
-    save_story_meta(story, path, length, args.style)
+    save_story_meta(story, path, length, args.style, quality)
     try:
         from . import captions
         captions.make_captions(path)

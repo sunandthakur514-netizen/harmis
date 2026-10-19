@@ -1,0 +1,27 @@
+# One-off clean-up: delete the old upload queue (the GitHub Release "queue", its tag
+# and all its old-style videos). Daily posting no longer uses it.
+# Run it from the Actions tab: "delete-queue" -> "Run workflow".
+name: delete-queue
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the "queue" release, its assets and its tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view queue --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release view queue --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name' | sed 's/^/deleting asset: /'
+            gh release delete queue --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
+            echo "Deleted the queue release and its assets." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "There is no queue release (already deleted)." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+          git ls-remote --tags "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" refs/tags/queue

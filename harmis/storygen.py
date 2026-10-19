@@ -369,7 +369,8 @@ def main():
         result = ({"args": f"--story {story} --format {slot}", "story": story, "source": "built-in"} if story
                   else {"args": "", "story": "none", "source": "none"})
         print(f"[storygen] Using {result['source']} story: {story}", file=sys.stderr)
-    print(json.dumps({**result, "theme": theme_name, "slot": slot, "topic": topic or ""}, ensure_ascii=False))
+    print(json.dumps({**result, "theme": theme_name, "slot": slot, "topic": topic or "", "episode": episode or ""},
+                     ensure_ascii=False))
 
 
 if __name__ == "__main__":

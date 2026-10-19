@@ -8,8 +8,9 @@
 #              pictures (local_sd), renders the video (Hindi, 3d_cartoon) and adds
 #              the .mp4 + .json captions to the GitHub Release "queue"
 #   3. commit: commits the new pictures so later videos reuse them
-# daily.yml then uploads the queued videos to YouTube, 2 per run, at most
-# daily.max_uploads_per_day (config.yaml) per day. Nothing is uploaded here.
+# NOTE: daily.yml no longer uploads from the queue (it makes one fresh short per run),
+# so videos made here are not posted automatically; download them from the
+# "queue" release or the run artifacts. Nothing is uploaded here.
 name: bulk
 
 on:
@@ -20,9 +21,9 @@ on:
         type: number
         default: 15
       longs:
-        description: How many long (5-7 minute) videos
+        description: How many long (5-7 minute) videos (daily posting is shorts only)
         type: number
-        default: 7
+        default: 0
 
 permissions:
   contents: write          # the "queue" release and the picture commit

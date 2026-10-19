@@ -480,10 +480,11 @@ publish:
 
 # ---------------------------------------------------------------------------
 # Automation (.github/workflows/daily.yml and bulk.yml)
-#   daily.yml: 06:30 and 18:30 IST short, 12:30 IST long. It first uploads up to
-#              2 videos from the upload queue (GitHub Release "queue"); only when
-#              the queue is empty does it make a new video.
-#   bulk.yml:  makes many videos at once and puts them in the queue.
+#   daily.yml: SHORTS ONLY - 5 runs a day (07:37, 10:37, 13:37, 17:37, 20:37 IST), each
+#              makes one new short (retried once, skipped if not good) and uploads it.
+#              Long videos are never made or uploaded automatically.
+#   bulk.yml:  makes many videos at once (default: shorts only) into the "queue"
+#              release; they are not uploaded automatically any more.
 # A story is never published twice (see output/published.csv). Stories are taken
 # from these genres in turns; horror is left out because this channel is made
 # for kids (the horror stories stay in the code for other uses).
@@ -494,4 +495,3 @@ daily:
   genres: [kids_story, kids_rhyme, comedy]
   exclude_stories: []           # story ids never to use automatically
   max_uploads_per_day: 5        # free YouTube quota: 10,000 units/day, one upload = 1,600 (+50 thumbnail)
-  queue_uploads_per_run: 2      # how many queued videos daily.yml uploads per run

@@ -1,40 +1,36 @@
-# Fully automatic publishing to YouTube, 3 times a day.
+# Fully automatic publishing to YouTube: SHORTS ONLY, 5 times a day.
 #
-#   06:30 IST  short video     12:30 IST  long 5-7 minute video     18:30 IST  short video
+#   07:37  10:37  13:37  17:37  20:37 IST   (cron is UTC: 02:07 05:07 08:07 12:07 15:07)
 #
-# Every run:
-#   1. If the upload queue (GitHub Release "queue", filled by bulk.yml) has videos,
-#      upload up to 2 of them (oldest first, shorts and longs mixed) and delete
-#      them from the queue. Nothing new is made in that run.
-#   2. Only when the queue is empty: Gemini writes a NEW story for today's theme
-#      (Mon moral fable, Tue Chintu & Golu comedy, Wed mythology, Thu fairy tale,
-#      Fri little detective, Sat science, Sun rhyme / riddle; config.yaml -> weekdays),
-#      or an unpublished built-in story is used; then pictures, video, upload.
-# Never more than daily.max_uploads_per_day uploads (config.yaml, default 5) per
-# YouTube quota day. Every upload is logged in output/published.csv, which is
-# committed back together with state/daily.json and any new pictures.
-# Needs the secrets YT_CLIENT_SECRET_JSON and YT_TOKEN_JSON (see README).
+# Every run makes ONE new short and uploads it:
+#   * the story: Gemini writes a NEW one for today's theme (Mon moral fable, Tue
+#     Chintu & Golu, Wed mythology, Thu fairy tale, Fri little detective, Sat science,
+#     Sun rhyme); 2 shorts a day are mythology (all on Wednesday), see config.yaml
+#   * Hindi, 3d_cartoon, scene pictures, Gemini / edge-tts voices, music and effects
+#   * harmis/make_short.py checks the video; if it is not good it tries once more,
+#     and if that fails too the slot is skipped - nothing broken is ever uploaded
+# Long videos are never made or uploaded automatically. At most
+# daily.max_uploads_per_day (5) uploads per YouTube quota day. Every upload is
+# logged in output/published.csv and committed with state/daily.json.
+# Needs the secrets YT_CLIENT_SECRET_JSON, YT_TOKEN_JSON and GEMINI_API_KEY (see README).
 name: daily
 
 on:
   schedule:                # GitHub cron is UTC; IST = UTC + 5:30
-    - cron: "0 1 * * *"    # 06:30 IST -> short
-    - cron: "0 7 * * *"    # 12:30 IST -> long
-    - cron: "0 13 * * *"   # 18:30 IST -> short
+    - cron: "7 2 * * *"    # 07:37 IST
+    - cron: "7 5 * * *"    # 10:37 IST
+    - cron: "7 8 * * *"    # 13:37 IST
+    - cron: "7 12 * * *"   # 17:37 IST
+    - cron: "7 15 * * *"   # 20:37 IST
   workflow_dispatch:
     inputs:
-      slot:
-        description: Type of a NEW video (auto = by the time of day in India)
-        type: choice
-        default: auto
-        options: [auto, short, long]
       publish:
-        description: Upload to YouTube (untick for a test run that only makes a video)
+        description: Upload to YouTube (untick for a test run that only makes the short)
         type: boolean
         default: true
 
 permissions:
-  contents: write          # commit the upload log / pictures, and manage the "queue" release
+  contents: write          # commit the upload log, rotation state and pictures
 
 concurrency:
   group: youtube-uploads
@@ -43,7 +39,7 @@ concurrency:
 env:
   PYTHON_VERSION: "3.11"
   HF_HUB_DISABLE_TELEMETRY: "1"
-  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}   # voices, scene descriptions and (if free quota) pictures
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}   # stories, voices, scene descriptions
   MODEL_CACHE_KEY: hf-sdxl-turbo-fp16-v1
   REMBG_CACHE_KEY: rembg-u2net-v1
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -52,7 +48,7 @@ env:
 jobs:
   daily:
     runs-on: ubuntu-latest
-    timeout-minutes: 300   # SDXL Turbo on the CPU is slow (a few minutes per picture)
+    timeout-minutes: 240   # up to 2 attempts with SDXL Turbo on the CPU
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -68,8 +64,69 @@ jobs:
       - name: Install HARMIS and the publishing packages
         run: pip install -r requirements.txt -r requirements-publish.txt
 
+      - name: Uploads left today
+        id: budget
+        run: |
+          LEFT=$(python -m harmis.daily budget)
+          echo "left=$LEFT" >> "$GITHUB_OUTPUT"
+          echo "Uploads still allowed today: $LEFT" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install CPU torch and local_sd
+        if: steps.budget.outputs.left != '0'
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements-local-sd.txt
+      - name: Restore SDXL Turbo model
+        if: steps.budget.outputs.left != '0'
+        id: model-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ env.MODEL_CACHE_KEY }}
+      - name: Restore rembg model
+        if: steps.budget.outputs.left != '0'
+        id: rembg-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.u2net
+          key: ${{ env.REMBG_CACHE_KEY }}
+
+      - name: Make one short (retried once, skipped if still not good)
+        id: short
+        if: steps.budget.outputs.left != '0'
+        run: python -m harmis.make_short --out output --tries 2
+      - name: Summary
+        if: always() && steps.short.outcome != 'skipped'
+        run: |
+          if [ "${{ steps.short.outputs.made }}" = "true" ]; then
+            echo "### Short: ${{ steps.short.outputs.story }} (theme ${{ steps.short.outputs.theme }} ${{ steps.short.outputs.topic }}, attempt ${{ steps.short.outputs.attempt }})" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### No good short this slot - skipped, nothing uploaded" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Save models to the cache (first time only)
+        if: always() && steps.budget.outputs.left != '0' && steps.model-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ env.MODEL_CACHE_KEY }}
+      - name: Save rembg model to the cache (first time only)
+        if: always() && steps.budget.outputs.left != '0' && steps.rembg-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.u2net
+          key: ${{ env.REMBG_CACHE_KEY }}
+      - uses: actions/upload-artifact@v4
+        if: steps.short.outputs.made == 'true'
+        with:
+          name: daily-short-${{ steps.short.outputs.story }}-${{ github.run_number }}
+          path: |
+            output/*.mp4
+            output/*.json
+          retention-days: 3
+
       - name: Write YouTube secrets to files (never printed)
-        if: env.UPLOAD == 'true'
+        if: steps.short.outputs.made == 'true' && env.UPLOAD == 'true'
         env:
           YT_CLIENT_SECRET_JSON: ${{ secrets.YT_CLIENT_SECRET_JSON }}
           YT_TOKEN_JSON: ${{ secrets.YT_TOKEN_JSON }}
@@ -82,118 +139,13 @@ jobs:
           mkdir -p ~/.config/harmis
           printf '%s' "$YT_CLIENT_SECRET_JSON" > client_secret.json
           printf '%s' "$YT_TOKEN_JSON" > ~/.config/harmis/youtube_token.json
-
-      - name: Uploads left today
-        id: budget
-        run: |
-          LEFT=$(python -m harmis.daily budget)
-          echo "left=$LEFT" >> "$GITHUB_OUTPUT"
-          echo "Uploads still allowed today: $LEFT" >> "$GITHUB_STEP_SUMMARY"
-
-      # 1. The queue first. (The token is refreshed automatically when it has expired.)
-      - name: Upload from the queue
-        id: queue
-        if: env.UPLOAD == 'true' && steps.budget.outputs.left != '0'
-        run: |
-          MAX=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("queue_uploads_per_run", 2))')
-          python -m harmis.upload_queue publish --max "$MAX"
-      - name: Queue summary
-        if: always() && steps.queue.outcome != 'skipped'
-        run: |
-          echo "Queue: ${{ steps.queue.outputs.queued }} waiting, ${{ steps.queue.outputs.uploaded }} uploaded, ${{ steps.queue.outputs.failed }} failed" >> "$GITHUB_STEP_SUMMARY"
-
-      # 2. Only when the queue is empty (or this is a test run): make a new video.
-      - name: Write or pick today's story
-        id: pick
-        if: >-
-          steps.budget.outputs.left != '0' &&
-          (env.UPLOAD != 'true' || steps.queue.outputs.queued == '0')
-        run: |
-          SLOT="${{ inputs.slot || 'auto' }}"
-          case "${{ github.event.schedule }}" in
-            "0 7 * * *") SLOT=long ;;
-            "0 1 * * *"|"0 13 * * *") SLOT=short ;;
-          esac
-          # Today's theme (weekday, India time): a NEW story from Gemini, or an unpublished built-in one.
-          RESULT=$(python -m harmis.storygen --slot "$SLOT" --out cache/story.json)
-          echo "$RESULT"
-          get() { python -c "import json,sys; print(json.loads(sys.argv[1])[sys.argv[2]])" "$RESULT" "$1"; }
-          STORY=$(get story); SLOT=$(get slot); THEME=$(get theme); SOURCE=$(get source); STORY_ARGS=$(get args)
-          LANG_=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("lang", "hindi"))')
-          STYLE=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("style", "3d_cartoon"))')
-          if [ "$STORY" = "none" ]; then
-            echo "::warning::Gemini could not write a story and every built-in $SLOT story has been published."
-            echo "make=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "make=true" >> "$GITHUB_OUTPUT"
-          echo "story=$STORY" >> "$GITHUB_OUTPUT"
-          echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
-          echo "args=$STORY_ARGS --lang $LANG_ --style $STYLE --providers gemini,local_sd" >> "$GITHUB_OUTPUT"
-          echo "### New $SLOT video: $STORY (theme $THEME, $SOURCE story, $LANG_, $STYLE)" >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Install CPU torch and local_sd
-        if: steps.pick.outputs.make == 'true'
-        run: |
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -r requirements-local-sd.txt
-      - name: Restore SDXL Turbo model
-        if: steps.pick.outputs.make == 'true'
-        id: model-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ~/.cache/huggingface
-          key: ${{ env.MODEL_CACHE_KEY }}
-      - name: Restore rembg model
-        if: steps.pick.outputs.make == 'true'
-        id: rembg-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: ~/.u2net
-          key: ${{ env.REMBG_CACHE_KEY }}
-      - name: Make missing pictures (local_sd)
-        if: steps.pick.outputs.make == 'true'
-        continue-on-error: true   # a failed picture is retried by main, or drawn as shapes
-        run: python -m harmis.prepare ${{ steps.pick.outputs.args }}
-      - name: Save models to the cache (first time only)
-        if: always() && steps.pick.outputs.make == 'true' && steps.model-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ~/.cache/huggingface
-          key: ${{ env.MODEL_CACHE_KEY }}
-      - name: Save rembg model to the cache (first time only)
-        if: always() && steps.pick.outputs.make == 'true' && steps.rembg-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: ~/.u2net
-          key: ${{ env.REMBG_CACHE_KEY }}
-
-      - name: Make the video
-        id: video
-        if: steps.pick.outputs.make == 'true'
-        run: |
-          python -m harmis.main ${{ steps.pick.outputs.args }} --offline
-          VIDEO=$(ls -t output/*.mp4 | head -n 1)
-          echo "video=$VIDEO" >> "$GITHUB_OUTPUT"
-          echo "Video: \`$VIDEO\`" >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
-        if: steps.pick.outputs.make == 'true'
-        with:
-          name: daily-${{ steps.pick.outputs.slot }}-${{ steps.pick.outputs.story }}-${{ github.run_number }}
-          path: |
-            output/*.mp4
-            output/*.json
-          if-no-files-found: error
-          retention-days: 3
-
-      - name: Upload to YouTube
+      - name: Upload the short to YouTube
         id: publish
-        if: steps.pick.outputs.make == 'true' && env.UPLOAD == 'true'
-        run: python -m harmis.publish --video "${{ steps.video.outputs.video }}" --to youtube
+        if: steps.short.outputs.made == 'true' && env.UPLOAD == 'true'
+        run: python -m harmis.publish --video "${{ steps.short.outputs.video }}" --to youtube
       - name: Remember the story
         if: steps.publish.outcome == 'success'
-        run: python -m harmis.daily done --slot ${{ steps.pick.outputs.slot }} --story ${{ steps.pick.outputs.story }}
-
+        run: python -m harmis.daily done --slot short --story "${{ steps.short.outputs.story }}"
       - name: Remove secret files
         if: always()
         run: rm -f client_secret.json ~/.config/harmis/youtube_token.json
@@ -210,10 +162,10 @@ jobs:
             echo "Nothing to commit."
             exit 0
           fi
-          git commit -m "daily: uploads ${{ steps.queue.outputs.uploaded || 0 }} from queue${{ steps.pick.outputs.story && format(', new {0} {1}', steps.pick.outputs.slot, steps.pick.outputs.story) || '' }} [skip ci]"
+          git commit -m "daily: short ${{ steps.short.outputs.story || 'skipped' }} [skip ci]"
           for i in 1 2 3 4; do
             git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
             sleep $((i * 5))
           done
-          echo "::error::Could not push the upload log; the next run may not know about these uploads."
+          echo "::error::Could not push the upload log; the next run may not know about this upload."
           exit 1

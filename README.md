@@ -418,23 +418,24 @@ Install the YouTube packages once: `pip install -r requirements-publish.txt`.
 
 ### Daily automation – required secrets
 
-`.github/workflows/daily.yml` makes and uploads a video **3 times a day**, with no
-computer needed:
+`.github/workflows/daily.yml` posts **shorts only**, **5 times a day**, with no computer
+needed. Long videos are never made or uploaded automatically.
 
-| Time (IST) | Cron (UTC) | Video |
-|---|---|---|
-| 06:30 | `0 1 * * *` | short (Hindi, 3d_cartoon) |
-| 12:30 | `0 7 * * *` | long, 5–7 minutes (Hindi, 3d_cartoon) |
-| 18:30 | `0 13 * * *` | short (Hindi, 3d_cartoon) |
+| Time (IST) | Cron (UTC) |
+|---|---|
+| 07:37 | `7 2 * * *` |
+| 10:37 | `7 5 * * *` |
+| 13:37 | `7 8 * * *` |
+| 17:37 | `7 12 * * *` |
+| 20:37 | `7 15 * * *` |
 
-Each run first looks at the **upload queue** (a GitHub Release named `queue`, filled
-by `bulk.yml`, see below). If it has videos, it uploads up to 2 of them (oldest
-first, shorts and longs mixed), deletes them from the queue and makes nothing new.
-Only when the queue is empty does it make a new video: it picks the next story
-that was **never published**, makes any missing pictures with `local_sd`, renders
-it and uploads it. The mp4 is kept as a run artifact for 3 days so you can check it.
-Start a test run any time from **Actions → daily → Run workflow** (untick "Upload
-to YouTube" to only make the video).
+Every run makes **one new short** for today's theme (2 shorts a day are mythology, all on
+Wednesday; see below), in Hindi with 3d_cartoon pictures, and uploads it to YouTube.
+`harmis/make_short.py` checks the video first (right length, every scene picture really
+made, Gemini or edge-tts voices, captions saved). If it is not good it **tries once more**
+with a new story for the same theme and topic; if that fails too, the slot is **skipped**
+and nothing is uploaded. The mp4 is kept as a run artifact for 3 days. Start a test run
+from **Actions → daily → Run workflow** (untick "Upload to YouTube" to only make it).
 
 - **Never twice:** every upload is logged in `output/published.csv` (time, video,
   YouTube id and url, story id, title), which the workflow commits back to the
@@ -510,14 +511,11 @@ then `python -m harmis.main --story-file cache/story.json`.
 
 ### Bulk videos and the upload queue (`bulk.yml`)
 
-**Actions → bulk → Run workflow** makes many videos at once (default **15 shorts
-and 7 longs**). It picks stories that were never published and are not queued,
-makes one video per job, **5 jobs at a time**, and adds each `.mp4` with its
-`.json` captions to the `queue` release (Releases page of the repo). New pictures
-are committed at the end so later videos reuse them. Nothing is uploaded by
-`bulk.yml`; `daily.yml` uploads the queued videos over the next days, within the
-daily limit. See what is waiting with `python -m harmis.upload_queue list`
-(needs `GITHUB_TOKEN`), or on the Releases page.
+**Actions → bulk → Run workflow** makes many videos at once (default **15 shorts, 0
+longs**), 5 jobs at a time, into a `queue` release. Daily posting **no longer uploads from
+the queue** (it makes one fresh short per run), so bulk videos are for downloading and
+checking only. The old queue (old-style videos) can be removed with **Actions →
+delete-queue → Run workflow**.
 
 Add these under **Settings → Secrets and variables → Actions → New repository secret**:
 
