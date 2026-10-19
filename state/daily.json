@@ -1,14 +1,23 @@
 {
   "short": {
-    "story": "talkative_tortoise",
-    "date": "2026-10-19T18:17+05:30",
+    "story": "monkey_crocodile",
+    "date": "2026-10-19T19:22+05:30",
     "published": [
+      "monkey_crocodile",
       "talkative_tortoise"
     ]
   },
   "short_themes": {
     "2026-10-19": [
-      "moral"
+      "moral",
+      "mythology"
     ]
+  },
+  "mythology": {
+    "index": 0,
+    "episodes": {
+      "krishna": 0
+    },
+    "last": "krishna"
   }
 }
