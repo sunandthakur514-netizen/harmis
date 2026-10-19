@@ -1,8 +1,9 @@
 # Make many videos at once and put them in the upload queue.
 #
 # Run it from the Actions tab: "bulk" -> "Run workflow". It
-#   1. plan:   picks stories that were never published and are not already queued
-#              (output/published.csv, state/daily.json, the "queue" release)
+#   1. plan:   with GEMINI_API_KEY, one weekday theme per job (each job has Gemini
+#              write a new story, see harmis/storygen.py); without it, built-in stories
+#              that were never published and are not already queued
 #   2. make:   one job per story, up to 5 at the same time; each makes the
 #              pictures (local_sd), renders the video (Hindi, 3d_cartoon) and adds
 #              the .mp4 + .json captions to the GitHub Release "queue"
@@ -56,13 +57,13 @@ jobs:
       - name: Pick unpublished stories
         id: plan
         run: |
-          python -m harmis.daily plan --shorts "${{ inputs.shorts }}" --longs "${{ inputs.longs }}" > jobs.json
+          python -m harmis.daily plan --shorts "${{ inputs.shorts }}" --longs "${{ inputs.longs }}" > jobs.json   # themes when GEMINI_API_KEY is set
           cat jobs.json
           echo "jobs=$(cat jobs.json)" >> "$GITHUB_OUTPUT"
           COUNT=$(python -c 'import json; print(len(json.load(open("jobs.json"))))')
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
           echo "### $COUNT videos to make" >> "$GITHUB_STEP_SUMMARY"
-          python -c 'import json; [print("-", j["format"] + ":", j["story"]) for j in json.load(open("jobs.json"))]' >> "$GITHUB_STEP_SUMMARY"
+          python -c 'import json; [print("-", j["format"] + ":", j["story"] or "new " + j["theme"] + " story") for j in json.load(open("jobs.json"))]' >> "$GITHUB_STEP_SUMMARY"
       - name: Make sure the queue release exists
         if: steps.plan.outputs.count != '0'
         run: python -c "from harmis.upload_queue import Queue; Queue().release(create=True)"
@@ -103,7 +104,7 @@ jobs:
       max-parallel: 5
       matrix:
         job: ${{ fromJSON(needs.plan.outputs.jobs) }}
-    name: make ${{ matrix.job.format }} ${{ matrix.job.story }}
+    name: make ${{ matrix.job.format }} ${{ matrix.job.story || matrix.job.theme }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -129,12 +130,20 @@ jobs:
         with:
           path: ~/.u2net
           key: ${{ env.REMBG_CACHE_KEY }}
-      - name: Options
+      - name: Options (a new Gemini story for the theme, or the planned built-in story)
         id: opts
         run: |
           LANG_=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("lang", "hindi"))')
           STYLE=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("style", "3d_cartoon"))')
-          echo "args=--story ${{ matrix.job.story }} --format ${{ matrix.job.format }} --lang $LANG_ --style $STYLE --providers gemini,local_sd" >> "$GITHUB_OUTPUT"
+          if [ -n "${{ matrix.job.theme }}" ]; then
+            RESULT=$(python -m harmis.storygen --theme "${{ matrix.job.theme }}" --format "${{ matrix.job.format }}" --out cache/story.json)
+            echo "$RESULT"
+            STORY_ARGS=$(python -c "import json,sys; print(json.loads(sys.argv[1])['args'])" "$RESULT")
+            if [ -z "$STORY_ARGS" ]; then echo "::error::No story available for this job."; exit 1; fi
+          else
+            STORY_ARGS="--story ${{ matrix.job.story }} --format ${{ matrix.job.format }}"
+          fi
+          echo "args=$STORY_ARGS --lang $LANG_ --style $STYLE --providers gemini,local_sd" >> "$GITHUB_OUTPUT"
       - name: Make missing pictures (local_sd)
         continue-on-error: true   # a failed picture is retried by main, or drawn as shapes
         run: python -m harmis.prepare ${{ steps.opts.outputs.args }}
@@ -151,7 +160,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: pictures-${{ matrix.job.story }}
+          name: pictures-${{ strategy.job-index }}
           path: pictures/
           if-no-files-found: ignore
           retention-days: 3

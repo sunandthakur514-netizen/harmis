@@ -205,6 +205,122 @@ genres:
     mood: dark moonlit night, mysterious and mildly spooky, suitable for teenagers, no gore
 
 # ---------------------------------------------------------------------------
+# Story themes by weekday (India time). Each run asks Gemini (GEMINI_API_KEY) to
+# write a NEW original Hindi story for today's theme (harmis/storygen.py); if
+# that fails 3 times, an unpublished built-in story is used instead.
+#   genre:      the HARMIS genre it is made as (style, narrator voice, music)
+#   brief:      what Gemini is asked to write
+#   characters: characters it must use (they look the same in every video)
+#   allowed:    characters it may use (from harmis/assets/characters)
+#   fallback:   which built-in stories fit when Gemini fails (sources)
+# No horror on this made-for-kids channel.
+# ---------------------------------------------------------------------------
+weekdays:                     # 0 = Monday ... 6 = Sunday
+  0: {short: moral, long: moral}
+  1: {short: kids_comedy, long: kids_comedy}
+  2: {short: mythology, long: mythology}
+  3: {short: fairy_tale, long: fairy_tale}
+  4: {short: mystery, long: mystery}
+  5: {short: science, long: science}
+  6: {short: rhyme, long: riddle}
+
+themes:
+  moral:
+    genre: kids_story
+    label: {hindi: पंचतंत्र जैसी एक कहानी, english: Moral Story}
+    brief: >-
+      a NEW original animal fable in the style of the Panchatantra or Jataka tales, set in an
+      Indian jungle, river or village, where clever or kind animals solve a problem; it must
+      end with a clear moral
+    fallback_sources: [Panchatantra, Jataka]
+    mood: bright cheerful daylight, warm happy colours
+  kids_comedy:
+    genre: kids_story
+    label: {hindi: चिंटू-गोलू की मज़ेदार कहानी, english: Funny Kids Story}
+    brief: >-
+      a NEW funny everyday-life comedy about two best friends, Chintu and Golu (both about
+      8-9 years old), with a silly misunderstanding or plan that goes wrong and a happy,
+      laugh-out-loud ending; gentle humour, nobody is mocked or hurt; end with a small lesson
+    characters: [chintu, golu]
+    allowed: [dadi, pinky, sharma_uncle]
+    fallback_sources: []
+    mood: bright sunny colours, fun and playful
+  mythology:
+    genre: kids_story
+    label: {hindi: बच्चों के लिए पौराणिक कथा, english: Mythology for Kids}
+    brief: >-
+      a gentle, respectful story for children about little Krishna, young Hanuman or little
+      Ganesha, based on a well-known traditional episode (for example Krishna and the butter
+      pot, Krishna lifting Govardhan to shelter the village, Hanuman's childhood leap towards
+      the sun, Ganesha going around his parents, Ganesha and the moon) told warmly; show the
+      deities with deep love and respect as wise, kind and joyful; no jokes at their expense,
+      no fighting, no demons, no violence; end with a value such as kindness, devotion or wisdom
+    allowed: [bal_krishna, bal_hanuman, bal_ganesha]
+    fallback_sources: []
+    mood: divine soft golden light, peaceful, joyful
+  fairy_tale:
+    genre: kids_story
+    label: {hindi: परी और जादू की कहानी, english: Fairy Tale}
+    brief: >-
+      a NEW original Indian fairy tale with a kind pari (fairy), a little magic and a brave,
+      kind child, set in a village, forest or palace garden; wonder and kindness, nothing scary;
+      end with a moral
+    allowed: [pari, pinky, chintu, dadi]
+    fallback_sources: []
+    mood: magical sparkling light, dreamy pastel colours
+  mystery:
+    genre: kids_story
+    label: {hindi: नन्हे जासूस की कहानी, english: Little Detective Mystery}
+    brief: >-
+      a NEW little detective mystery for children: clever kids find clues and solve a gentle
+      puzzle (a missing toy, missing ladoos, a strange sound that turns out to be a kitten);
+      NOT scary, no crime, no danger, nobody is hurt; the answer is funny or sweet; end with a
+      lesson about observing carefully or being honest
+    allowed: [chintu, golu, pinky, dadi, sharma_uncle]
+    fallback_sources: []
+    mood: bright daylight, curious and playful
+  science:
+    genre: kids_story
+    label: {hindi: विज्ञान और अंतरिक्ष की सैर, english: Science Adventure}
+    brief: >-
+      a NEW science or space adventure for children (for example a trip to the Moon, why the
+      sky is blue, how plants drink water, the water cycle) that teaches ONE real, correct
+      science fact in a fun way; Indian child heroes; nothing scary; end with what we learned
+    allowed: [chintu, pinky, golu]
+    fallback_sources: []
+    mood: bright, colourful, wonder and discovery
+  rhyme:
+    genre: kids_rhyme
+    label: {hindi: एक प्यारी कविता, english: Hindi Rhyme}
+    brief: >-
+      a NEW original, cheerful Hindi rhyme (बाल गीत) for small children about everyday Indian
+      life, nature, animals or good habits, with short rhyming couplets and a catchy repeated
+      line; do NOT copy any existing song or poem; the last line is a happy closing line
+    allowed: [chintu, pinky, golu, mendhak, chidiya]
+    fallback_sources: ["Original rhyme"]
+    mood: bright cheerful colours, playful
+  riddle:
+    genre: kids_story
+    label: {hindi: अकबर-बीरबल / तेनाली की पहेली, english: Riddle Story}
+    brief: >-
+      a NEW riddle story in the style of the Akbar-Birbal or Tenali Raman tales: the king asks a
+      tricky question or riddle, courtiers fail, and Birbal (or Tenali Raman) answers it with
+      wit; let the children try to guess before the answer; end with a moral
+    allowed: [akbar, birbal, tenali, raja]
+    fallback_sources: [Akbar-Birbal, Tenali Raman]
+    mood: bright warm palace light
+
+storygen:
+  model: gemini-2.5-flash
+  tries: 3
+  review: true                # a second Gemini request double-checks every story is kid-safe
+  words: {short: [75, 105], long: [780, 950]}   # spoken Hindi words: 45-55 s / 5-7 min
+  lines: {short: [6, 10], long: [40, 70]}
+  scenes: {short: [2, 4], long: [10, 18]}
+  unsafe_words: [खून, हत्या, मार डाल, मार दिया, मर गया, मर गई, मौत, लाश, भूत, चुड़ैल, डरावन, बंदूक,
+                 चाकू, गोली, शराब, सिगरेट, kill, blood, dead, death, ghost, gun, knife, murder, alcohol]
+
+# ---------------------------------------------------------------------------
 # Publishing (python -m harmis.publish). Secrets are NEVER stored here: they come
 # from environment variables / GitHub or Codespaces secrets (see README).
 # ---------------------------------------------------------------------------
@@ -240,6 +356,15 @@ publish:
       Jataka: ["#jatakakatha", "#jatakatales"]
       Akbar-Birbal: ["#akbarbirbal", "#birbal"]
       Tenali Raman: ["#tenaliraman", "#tenalirama"]
+    by_theme:                 # stories written for a weekday theme
+      moral: ["#MoralStory", "#PanchatantraStyle", "#JungleKiKahani"]
+      kids_comedy: ["#FunnyKidsStory", "#ChintuGolu", "#MazedarKahani", "#KidsComedy"]
+      mythology: ["#KrishnaStory", "#HanumanStory", "#GaneshaStory", "#BalKrishna", "#MythologyForKids"]
+      fairy_tale: ["#PariKiKahani", "#FairyTale", "#JaaduiKahani", "#MagicStory"]
+      mystery: ["#DetectiveStory", "#JasoosKahani", "#MysteryForKids", "#KidsDetective"]
+      science: ["#ScienceForKids", "#SpaceStory", "#VigyanKahani", "#LearnWithFun"]
+      rhyme: ["#HindiRhymes", "#BalGeet", "#KidsPoem"]
+      riddle: ["#AkbarBirbal", "#TenaliRaman", "#Paheli", "#RiddleStory"]
     always: ["#KahaniKhazana", "#hindi"]
     shorts: ["#shorts"]       # added to YouTube Shorts
     reels: ["#reels", "#reelsindia"]   # added to Instagram Reels

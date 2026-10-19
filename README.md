@@ -446,6 +446,40 @@ to YouTube" to only make the video).
   rhymes and family comedy). The horror stories stay in the code but are never
   used for this made-for-kids channel.
 
+### A new story every run: weekday themes (Gemini)
+
+With the `GEMINI_API_KEY` secret, every daily (and bulk) video is a **brand-new original
+Hindi story** written by Gemini for the day's theme (India time, `weekdays:` and
+`themes:` in `config.yaml`, code in `harmis/storygen.py`):
+
+| Day | Theme | Hashtags (examples) |
+|---|---|---|
+| Mon | Panchatantra / Jataka style moral fable | #MoralStory #PanchatantraStyle |
+| Tue | Kids comedy with the recurring friends **Chintu & Golu** | #FunnyKidsStory #ChintuGolu |
+| Wed | Mythology for kids: little Krishna, Hanuman, Ganesha (respectful) | #KrishnaStory #HanumanStory #GaneshaStory |
+| Thu | Pari / magic fairy tale | #PariKiKahani #FairyTale |
+| Fri | Little detective mystery (never scary) | #DetectiveStory #JasoosKahani |
+| Sat | Science / space adventure (one real fact) | #ScienceForKids #SpaceStory |
+| Sun | Rhyme / poem (shorts) and an Akbar-Birbal / Tenali riddle story (long) | #HindiRhymes #AkbarBirbal #Paheli |
+
+- Gemini writes the story in the samples format: title, characters with **fixed visual
+  descriptions**, scenes with a place, an **action** (what the picture shows) and dialogue,
+  and a moral. Shorts are 45-55 s, long videos 5-7 minutes.
+- Every story is checked: kid-safe words (and a second Gemini safety review), length,
+  the theme's characters, valid speakers, and **not a repeat** of any title in
+  `output/published.csv`. Up to 3 tries, each told what was wrong; if Gemini still fails
+  (or there is no key) an unpublished built-in story that fits the theme is used.
+- Recurring and sacred characters have fixed looks in `harmis/assets/characters/`
+  (`chintu`, `golu`, `bal_krishna`, `bal_hanuman`, `bal_ganesha`, `pari`); other new
+  characters live only for that video (`cache/characters/`).
+- Titles, descriptions and hashtags follow the theme (`publish: hashtags: by_theme`).
+  Mythology tags only name the deity who is in the story.
+- **No horror** on this channel: no theme uses it, and the built-in horror stories are
+  never picked automatically.
+
+Try one by hand: `python -m harmis.storygen --theme mythology --format short --out cache/story.json`
+then `python -m harmis.main --story-file cache/story.json`.
+
 ### Bulk videos and the upload queue (`bulk.yml`)
 
 **Actions → bulk → Run workflow** makes many videos at once (default **15 shorts

@@ -1,0 +1,12 @@
+# Bal Ganesha, shown with love and respect (mythology for kids)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Ganesha              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: गणेश
+  english: Ganesha
+gender: m               # m / f (picks the voice)
+age: child            # child / adult / old
+type: animal             # human / animal
+seed: 1304              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  little Lord Ganesha as a sweet chubby child with a gentle elephant head, one small tusk, a golden crown, a red and yellow silk dhoti and a plate of modaks

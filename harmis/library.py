@@ -35,6 +35,7 @@ from .config import CONFIG
 
 ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 CHARACTER_DIR = os.path.join(ASSETS, "characters")
+TEMP_CHARACTER_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "cache", "characters")
 BACKGROUND_DIR = os.path.join(ASSETS, "backgrounds")
 
 # Sizes we ask the providers for (they are resized later).
@@ -209,12 +210,16 @@ class Library:
                 return data
         return None
 
-    def add_character(self, name, gender="m", age="adult", look="", hindi_label=None):
-        """Create a new character.yaml (for characters invented by Gemini)."""
-        char_id = _slug(name)
+    def add_character(self, name, gender="m", age="adult", look="", hindi_label=None, persist=True):
+        """A new character invented by Gemini.
+
+        persist=True writes harmis/assets/characters/<id>/character.yaml (kept for good);
+        persist=False keeps it for this run only, with its picture in cache/characters/.
+        """
+        char_id = _slug(name) or "character"
         while char_id in self.characters:
             char_id += "_2"
-        folder = os.path.join(CHARACTER_DIR, char_id)
+        folder = os.path.join(CHARACTER_DIR if persist else TEMP_CHARACTER_DIR, char_id)
         os.makedirs(folder, exist_ok=True)
         person = {("m", "child"): "boy", ("f", "child"): "girl", ("m", "old"): "grandfather",
                   ("f", "old"): "grandmother", ("m", "adult"): "man", ("f", "adult"): "woman"}[(gender, age)]
@@ -226,9 +231,12 @@ class Library:
             "seed": zlib.crc32(char_id.encode()) % 100000,
             "description": make_safe(look) or f"a friendly Indian {person} wearing colourful everyday clothes",
         }
-        with open(os.path.join(folder, "character.yaml"), "w", encoding="utf-8") as file:
-            file.write("# Added automatically for a Gemini story. Edit freely.\n")
-            yaml.safe_dump(data, file, allow_unicode=True, sort_keys=False)
+        if persist:
+            with open(os.path.join(folder, "character.yaml"), "w", encoding="utf-8") as file:
+                file.write("# Added automatically for a Gemini story. Edit freely.\n")
+                yaml.safe_dump(data, file, allow_unicode=True, sort_keys=False)
+        else:
+            data["folder"] = folder
         data["id"] = char_id
         self.characters[char_id] = data
         print(f"[library] Added new character '{name}' to {folder}")
@@ -240,8 +248,12 @@ class Library:
             self._pictures[data["id"]] = self._character_image(data)
         return self._pictures[data["id"]]
 
+    @staticmethod
+    def folder(data):
+        return data.get("folder") or os.path.join(CHARACTER_DIR, data["id"])
+
     def _character_image(self, data):
-        folder = os.path.join(CHARACTER_DIR, data["id"])
+        folder = self.folder(data)
         custom = os.path.join(folder, "custom.png")
         if os.path.exists(custom):
             image = Image.open(custom)
@@ -322,7 +334,7 @@ class Library:
         return os.path.join(folder, name + ".png"), os.path.join(folder, name + ".json")
 
     def _shot_prompts(self, shot):
-        mood = CONFIG["genres"][self.genre].get("mood", "")
+        mood = self.script.get("mood") or CONFIG["genres"][self.genre].get("mood", "")
         return shot_plan.prompts(shot, self.script, self, style_text(self.style), short_style(self.style),
                                  SAFE_CORE, mood, COMPOSITION[self.fmt])
 
@@ -404,7 +416,7 @@ class Library:
         kind, name = item.split(":", 1)
         if kind == "character":
             data = self.characters[name]
-            folder = os.path.join(CHARACTER_DIR, name)
+            folder = self.folder(data)
             if os.path.exists(os.path.join(folder, "custom.png")):
                 return True
             png, meta = os.path.join(folder, f"{self.style}.png"), os.path.join(folder, f"{self.style}.json")

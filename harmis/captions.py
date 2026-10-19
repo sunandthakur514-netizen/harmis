@@ -94,11 +94,24 @@ def fit(text, limit):
     return cut + "…"
 
 
+# Mythology tags that only fit when that deity is in the story.
+DEITY_TAGS = {"#krishnastory": ("कृष्ण", "krishna"), "#balkrishna": ("कृष्ण", "krishna"),
+              "#hanumanstory": ("हनुमान", "hanuman"), "#ganeshastory": ("गणेश", "ganesh")}
+
+
+def theme_tags(meta, tags_cfg):
+    """Hashtags for the weekday theme (config.yaml -> publish: hashtags: by_theme)."""
+    tags = list(tags_cfg.get("by_theme", {}).get(meta.get("theme") or "", []))
+    about = " ".join([str(meta.get("title", ""))] + [str(c) for c in meta.get("characters", [])]).lower()
+    return [t for t in tags if t.lower() not in DEITY_TAGS or any(w in about for w in DEITY_TAGS[t.lower()])]
+
+
 def hashtags_for(meta, platform):
     tags_cfg = CONFIG["publish"]["hashtags"]
     by_source = list(tags_cfg.get("by_source", {}).get(meta.get("source") or "", []))
+    by_theme = theme_tags(meta, tags_cfg)
     genre_tags = list(tags_cfg.get(meta["genre"], []))
-    tags = genre_tags[:2] + by_source + genre_tags[2:] + list(tags_cfg.get("always", []))
+    tags = by_theme[:3] + genre_tags[:2] + by_source + by_theme[3:] + genre_tags[2:] + list(tags_cfg.get("always", []))
     if platform == "youtube" and meta.get("format") == "short":
         tags = list(tags_cfg.get("shorts", [])) + tags
     if platform == "instagram":
@@ -117,6 +130,9 @@ def hashtags_for(meta, platform):
 # ---------------------------------------------------------------------------
 def template_captions(meta):
     hindi_genre, english_genre = GENRE_WORDS.get(meta["genre"], GENRE_WORDS["kids_story"])
+    theme = CONFIG.get("themes", {}).get(meta.get("theme") or "")
+    if theme:  # a story written for a weekday theme: "परी और जादू की कहानी (Fairy Tale)"
+        hindi_genre, english_genre = theme["label"]["hindi"], theme["label"]["english"]
     source = meta.get("source") or ""
     source_hi = SOURCE_WORDS.get(source, "")
     title = clean(meta["title"])
@@ -150,7 +166,7 @@ def gemini_captions(meta, api_key):
         f"The title MUST contain the story title exactly: {meta['title']}. "
         "Mix Hindi (Devanagari) and simple English, friendly and kid-safe. "
         f"Never mention copyrighted characters, brands or other channels. Story details: "
-        f"{json.dumps({k: meta.get(k) for k in ('title', 'genre', 'format', 'source', 'characters', 'summary', 'moral')}, ensure_ascii=False)}. "
+        f"{json.dumps({k: meta.get(k) for k in ('title', 'genre', 'theme', 'format', 'source', 'characters', 'summary', 'moral')}, ensure_ascii=False)}. "
         f"Reply with ONLY JSON: {{\"title\": \"max {TITLE_MAX} characters\", "
         "\"description\": \"3-6 short paragraphs, include the moral if there is one, end with a "
         "friendly like/share/subscribe line\", \"hashtags\": [\"#up to 10 relevant hashtags\"]}"
@@ -213,6 +229,7 @@ def make_captions(video_path, use_ai=True, save=True):
         "genre": meta["genre"],
         "lang": meta.get("lang", "hindi"),
         "source": meta.get("source", ""),
+        "theme": meta.get("theme", ""),
         "youtube": {
             "title": youtube_title,
             "description": fit(description + "\n\n" + " ".join(youtube_tags), 4900),

@@ -44,13 +44,14 @@ def main():
     parser.add_argument("--list-file", help="do not make pictures; write the MISSING ones to this JSON file")
     parser.add_argument("--only", help="make only this picture, e.g. scene:palace_court or character:akbar")
     args = parser.parse_args()
-    if not args.story:
-        parser.error("--story is needed (for example --story birbal_khichdi)")
+    if not (args.story or args.story_file):
+        parser.error("--story or --story-file is needed (for example --story birbal_khichdi)")
     args = resolve_options(parser, args)
-    print(f"[prepare] story={args.story} style={args.style} format={args.format}")
+    print(f"[prepare] story={args.story or args.story_file} style={args.style} format={args.format}")
 
     chain, library = setup(args)
-    story = script.get_script(args.genre, args.lang, library, story=args.story, fmt=args.format)
+    story = script.get_script(args.genre, args.lang, library, story=args.story, fmt=args.format,
+                              story_file=args.story_file)
     if args.list_file:  # the prepare-pictures workflow makes (and commits) the character pictures
         needed = library.needed_pictures(story, shots=False)
         missing = [item for item in needed if args.refresh_images or not library.is_ready(item)]

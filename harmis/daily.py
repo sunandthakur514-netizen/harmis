@@ -6,7 +6,8 @@
     python -m harmis.daily plan --shorts 15 --longs 7   # JSON list of stories for bulk.yml
     python -m harmis.daily published               # every story already on YouTube
 
-A story is never used twice: published stories (output/published.csv, plus the
+New stories: harmis/storygen.py writes one per run for the weekday theme; this
+module also picks the built-in fallback. A story is never used twice: published stories (output/published.csv, plus the
 older state/daily.json) and stories waiting in the upload queue are skipped.
 Only the genres in config.yaml (daily: genres) are used, so the horror stories
 stay out of this made-for-kids channel.
@@ -110,15 +111,27 @@ def next_story(slot, used=None):
     return next((story for story in candidates(slot) if story not in used), None)
 
 
-def plan(shorts, longs, used=None):
-    """Stories for a bulk run: [{"story": id, "format": short|long}, ...], none used before."""
+def plan(shorts, longs, used=None, ai=None):
+    """Jobs for a bulk run.
+
+    With GEMINI_API_KEY: [{"theme": weekday theme, "story": "", "format": ...}] - every job
+    writes a new story for its theme (the themes of the coming days, in turn).
+    Without it: [{"story": built-in id, "theme": "", "format": ...}], none used before.
+    """
+    if ai is None:
+        ai = bool(os.environ.get("GEMINI_API_KEY"))
+    if ai:
+        today = datetime.datetime.now(IST).weekday()
+        weekdays = CONFIG["weekdays"]
+        return [{"theme": weekdays[(today + i) % 7][slot], "story": "", "format": slot}
+                for slot, count in (("short", shorts), ("long", longs)) for i in range(count)]
     used = used_stories() if used is None else used
     jobs = []
     for slot, count in (("short", shorts), ("long", longs)):
         free = [s for s in candidates(slot) if s not in used]
         if len(free) < count:
             print(f"[daily] Only {len(free)} unused {slot} stories left (asked for {count}).", file=sys.stderr)
-        jobs += [{"story": story, "format": slot} for story in free[:count]]
+        jobs += [{"story": story, "theme": "", "format": slot} for story in free[:count]]
     return jobs
 
 

@@ -49,6 +49,7 @@ def save_story_meta(story, video_path, length, style):
         "title": story["title"], "story_id": story.get("id", ""), "genre": story["genre"],
         "lang": story["lang"], "format": story.get("format", "short"), "style": style,
         "source": story.get("source", ""), "tagline": story.get("tagline", ""),
+        "theme": story.get("theme", ""),
         "characters": [c["label"] for c in story["characters"]],
         "summary": narrator_lines[0] if narrator_lines else story["lines"][0]["text"],
         "moral": moral, "duration": round(length, 1),
@@ -81,6 +82,7 @@ def add_common_options(parser):
     stories = script.story_ids()
     parser.add_argument("--genre", choices=script.GENRES, help="story genre (needed unless --story is given)")
     parser.add_argument("--story", choices=sorted(stories), help="a specific built-in story")
+    parser.add_argument("--story-file", help="a new story written by `python -m harmis.storygen` (JSON)")
     parser.add_argument("--format", choices=FORMATS, help="short (vertical, 30-60 s) or long (16:9, 5-7 min); "
                                                            "default: short, or the story's own format")
     parser.add_argument("--lang", choices=script.LANGS, default=CONFIG["defaults"]["lang"],
@@ -94,7 +96,12 @@ def add_common_options(parser):
 def resolve_options(parser, args):
     """Fill in genre / format / style from --story and config.yaml."""
     stories = script.story_ids()
-    if args.story:
+    if args.story_file:
+        import json
+        with open(args.story_file, encoding="utf-8") as file:
+            sample = json.load(file)
+        args.genre, args.format = sample["genre"], sample["format"]
+    elif args.story:
         genre, story_format = stories[args.story]
         if args.format and args.format != story_format:
             parser.error(f"--story {args.story} is a {story_format} story")
@@ -132,13 +139,13 @@ def main():
     with tempfile.TemporaryDirectory(prefix="harmis_") as work_dir:
         # 1. Script
         story = script.get_script(args.genre, args.lang, library, use_ai=not args.offline,
-                                  story=args.story, fmt=fmt)
+                                  story=args.story, fmt=fmt, story_file=args.story_file)
 
         # 2. Voices
         voiced = voice.make_voices(story, os.path.join(work_dir, "audio0"), library=library)
         length = spoken_length(voiced, fmt)
 
-        if fmt == "short" and length > max_length and not args.story:
+        if fmt == "short" and length > max_length and not (args.story or args.story_file):
             # Too long for a Short? Try the built-in scripts (shortest wins if none fit).
             best = (story, voiced)
             for attempt, other in enumerate(script.sample_scripts(args.genre, args.lang, library), start=1):

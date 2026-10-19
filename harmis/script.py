@@ -244,6 +244,8 @@ def build_sample(sample, genre, lang, library, fmt="short"):
     return {
         "id": sample["id"],
         "source": sample.get("source", ""),
+        "theme": sample.get("theme", ""),
+        "mood": sample.get("mood", ""),
         "title": sample["title"][lang],
         "tagline": sample.get("tagline", TAGLINE[genre])[lang] if fmt == "long" else "",
         "genre": genre,
@@ -282,12 +284,18 @@ def story_ids():
     return ids
 
 
-def get_script(genre, lang, library, use_ai=True, story=None, fmt="short"):
+def get_script(genre, lang, library, use_ai=True, story=None, fmt="short", story_file=None):
     """Main entry point: return a script dict.
 
     story: id of a built-in story (for example "birbal_khichdi"); skips Gemini.
+    story_file: a story written by harmis/storygen.py (JSON in the samples format).
     fmt:   "short" (30-60 s) or "long" (5-7 min).
     """
+    if story_file:
+        from . import storygen
+        sample = storygen.load_story_file(story_file, library)
+        print(f"[script] Using the new story: {sample['title']['hindi']} (theme {sample.get('theme')})")
+        return build_sample(sample, sample["genre"], lang, library, sample["format"])
     if lang not in LANGS:
         raise ValueError(f"Unknown language '{lang}'. Choose from: {', '.join(LANGS)}")
     if genre not in GENRES:

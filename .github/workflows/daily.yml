@@ -6,8 +6,10 @@
 #   1. If the upload queue (GitHub Release "queue", filled by bulk.yml) has videos,
 #      upload up to 2 of them (oldest first, shorts and longs mixed) and delete
 #      them from the queue. Nothing new is made in that run.
-#   2. Only when the queue is empty: pick the next story that was never published,
-#      make its pictures (local_sd), render it (Hindi, 3d_cartoon) and upload it.
+#   2. Only when the queue is empty: Gemini writes a NEW story for today's theme
+#      (Mon moral fable, Tue Chintu & Golu comedy, Wed mythology, Thu fairy tale,
+#      Fri little detective, Sat science, Sun rhyme / riddle; config.yaml -> weekdays),
+#      or an unpublished built-in story is used; then pictures, video, upload.
 # Never more than daily.max_uploads_per_day uploads (config.yaml, default 5) per
 # YouTube quota day. Every upload is logged in output/published.csv, which is
 # committed back together with state/daily.json and any new pictures.
@@ -101,7 +103,7 @@ jobs:
           echo "Queue: ${{ steps.queue.outputs.queued }} waiting, ${{ steps.queue.outputs.uploaded }} uploaded, ${{ steps.queue.outputs.failed }} failed" >> "$GITHUB_STEP_SUMMARY"
 
       # 2. Only when the queue is empty (or this is a test run): make a new video.
-      - name: Pick the next unpublished story
+      - name: Write or pick today's story
         id: pick
         if: >-
           steps.budget.outputs.left != '0' &&
@@ -112,19 +114,23 @@ jobs:
             "0 7 * * *") SLOT=long ;;
             "0 1 * * *"|"0 13 * * *") SLOT=short ;;
           esac
-          read -r STORY SLOT <<< "$(python -m harmis.daily next --slot "$SLOT")"
+          # Today's theme (weekday, India time): a NEW story from Gemini, or an unpublished built-in one.
+          RESULT=$(python -m harmis.storygen --slot "$SLOT" --out cache/story.json)
+          echo "$RESULT"
+          get() { python -c "import json,sys; print(json.loads(sys.argv[1])[sys.argv[2]])" "$RESULT" "$1"; }
+          STORY=$(get story); SLOT=$(get slot); THEME=$(get theme); SOURCE=$(get source); STORY_ARGS=$(get args)
           LANG_=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("lang", "hindi"))')
           STYLE=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("style", "3d_cartoon"))')
           if [ "$STORY" = "none" ]; then
-            echo "::warning::Every built-in $SLOT story has been published. Add new stories to harmis/samples*.py (or run bulk.yml after adding them)."
+            echo "::warning::Gemini could not write a story and every built-in $SLOT story has been published."
             echo "make=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           echo "make=true" >> "$GITHUB_OUTPUT"
           echo "story=$STORY" >> "$GITHUB_OUTPUT"
           echo "slot=$SLOT" >> "$GITHUB_OUTPUT"
-          echo "args=--story $STORY --format $SLOT --lang $LANG_ --style $STYLE --providers gemini,local_sd" >> "$GITHUB_OUTPUT"
-          echo "### New $SLOT video: $STORY ($LANG_, $STYLE)" >> "$GITHUB_STEP_SUMMARY"
+          echo "args=$STORY_ARGS --lang $LANG_ --style $STYLE --providers gemini,local_sd" >> "$GITHUB_OUTPUT"
+          echo "### New $SLOT video: $STORY (theme $THEME, $SOURCE story, $LANG_, $STYLE)" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install CPU torch and local_sd
         if: steps.pick.outputs.make == 'true'

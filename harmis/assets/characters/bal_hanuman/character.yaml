@@ -1,0 +1,12 @@
+# Bal Hanuman, shown with love and respect (mythology for kids)
+# Drop your own picture in this folder as custom.png to replace the generated one.
+name: Hanuman              # the name used in scripts
+label:                    # how the name is shown on screen
+  hindi: हनुमान
+  english: Hanuman
+gender: m               # m / f (picks the voice)
+age: child            # child / adult / old
+type: animal             # human / animal
+seed: 1303              # fixed seed so the picture comes out the same
+description: >-           # fixed look, added to every image prompt
+  young Lord Hanuman as a cheerful, strong little boy with a kind monkey face, golden-orange fur, a small golden crown, a red cloth around his waist and a little golden mace resting on his shoulder
