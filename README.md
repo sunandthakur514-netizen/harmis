@@ -148,42 +148,55 @@ Generated pictures **are committed** to git, so they are made once and reused
 forever (also by the GitHub Actions workflows below), and so are your own
 `custom.png` and `<scene>.png` files.
 
-### Animation
+### Video quality: voices, scene pictures, sound
 
-- The background moves slowly (Ken Burns zoom and pan) and **crossfades** when the scene changes.
-- The **speaking** character bounces gently, grows a little and glows, and its
-  **mouth flaps** with the voice (see below). The others dim slightly and breathe.
-- Everyone **blinks** every 3–5 seconds.
-- A round picture of the narrator appears while the narrator speaks.
-- Subtitles sit in a small, see-through box with the speaker's name. In short
-  videos the title stays at the top.
-- Characters or scenes without a picture are drawn in the simple shape style
-  (shape characters' mouths move with the voice).
+**Voices** (`harmis/voice.py`, `voice:` in `config.yaml`):
+1. **Gemini TTS** (`GEMINI_API_KEY`, free tier, model `gemini-2.5-flash-preview-tts` by
+   default; put newer model names first in `voice: gemini: models`). Expressive Hindi,
+   and a **different prebuilt voice** for the narrator and for every character, chosen by
+   gender and age (or set `gemini_voice: Puck` in a `character.yaml`). Clips are cached
+   in `cache/tts/`, so a retry never spends the free quota twice.
+2. **edge-tts**, 3 tries per line with growing pauses.
+3. espeak-ng / silence, **only on your own computer**. Inside GitHub Actions they are
+   never used: if Gemini and edge-tts both fail, the run fails, so a robotic video is
+   never published.
 
-### Lip movement (mouth flaps) and blinking
+One story always uses one engine: if Gemini runs out of quota halfway, the whole story is
+voiced again with edge-tts.
 
-Every character picture gets three extra versions, made once and cached next to it:
-`<picture>_mouth_half.png`, `<picture>_mouth_open.png` and `<picture>_blink.png`.
-They are made with **local_sd**, which repaints only a small area around the mouth
-or the eyes (same seed and description, plus "mouth open, talking" / "eyes
-closed"), so the rest of the character stays exactly the same.
+**Scene pictures** (`harmis/shots.py`): instead of pasting the same character cut-out on
+every background, each part of the story gets **one full picture showing the characters
+doing what happens there** (the tortoise holding the stick, flying with the swans, ...).
+- A new picture starts when the scene changes, at each line with an `"actions"` entry in
+  the story, and at least every 3 lines (short) / 4 lines (long).
+- What each picture shows comes from the story's own `"actions"` (see
+  `talkative_tortoise` in `harmis/samples.py`), else from **one Gemini request per story**
+  that describes every shot, else from the English line, else "the characters together here".
+- The characters keep the same fixed description, the same style words and the same seed
+  in every picture. **Gemini image** also gets each character's own picture as a
+  reference. If the key has no free image quota, Gemini is skipped for the run and
+  **local_sd** makes the pictures.
+- Shots are cached in `cache/shots/<story>/` and not committed (each story is published
+  once). If a shot cannot be made, a simple picture is put together from the background
+  and the character pictures.
 
-While a character speaks, HARMIS checks how loud the voice is every ~80 ms and
-shows the closed, half-open or open mouth, smoothed so it does not flicker.
+**Animation**: no mouth flaps and no pasted cut-outs any more. Each picture gets a slow,
+smooth **Ken Burns** move (zoom and pan, a different direction for each picture) and a
+soft **crossfade** into the next, with the title, subtitles and (long videos) the intro
+and ending cards on top.
 
-**Where is the mouth?** `character.yaml` has `mouth_box` and `eyes_box`
-(`[x, y, width, height]` as fractions of the picture). If they are missing,
-HARMIS finds them itself (face detection, or the shape of the head in the cut-out
-picture, or a default for a `type: human` / `type: animal`). It writes the result
-into `character.yaml` so you can correct the numbers. After editing, delete that
-character's `*_mouth_*.png`, `*_blink.png` and `*_variants.json` to remake them.
+**Sound** (`harmis/sound.py`, `audio:` in `config.yaml`): soft **background music** at a
+low volume that gets a little quieter while someone speaks (`lullaby` for stories,
+`playful` for rhymes and comedy, none for horror), plus small **sound effects** when a
+line mentions them: whoosh (उड़, flying), splash (छपाक), laugh (हा हा, हँसी), thud
+(धम, गिरा), twinkle (जादू, सोने का), boing (उछल, कूद), pop. The words are listed in
+`config.yaml`. The music and effects in `harmis/assets/music` and `harmis/assets/sfx`
+were made from scratch by `tools/make_sounds.py` and are **CC0** (public domain).
 
-**Fallback:** if local_sd is not installed, or repainting fails, a simple cartoon
-mouth (a dark oval in a darker skin colour) is drawn over `mouth_box` and opens
-with the voice. Blinking then only happens if you add your own `blink.png`.
-
-`python -m harmis.prepare` (and the `prepare-pictures` workflow) make these
-versions together with the character pictures.
+**Try it:** **Actions → test-quality → Run workflow** makes one short (`talkative_tortoise`
+by default) and attaches the mp4 and the scene pictures to the run. Nothing is uploaded.
+Add the `GEMINI_API_KEY` repository secret first (free key at
+<https://aistudio.google.com/apikey>); without it, voices use edge-tts and pictures local_sd.
 
 ### Long videos (`--format long`)
 
@@ -359,7 +372,7 @@ Settings > Secrets and variables > Actions).
 | `IG_ACCESS_TOKEN` | Instagram | long-lived token (Instagram step 6) |
 | `META_APP_ID`, `META_APP_SECRET` | Instagram token refresh | Meta app > App settings > Basic |
 | `GITHUB_TOKEN` | Instagram (temporary video link) | already there in GitHub Actions; in Codespaces it is set automatically, or make a fine-grained token with "Contents: read and write" for this repository |
-| `GEMINI_API_KEY` | better captions (optional) | <https://aistudio.google.com/apikey> |
+| `GEMINI_API_KEY` | expressive voices, scene descriptions, pictures, captions (recommended) | <https://aistudio.google.com/apikey> |
 
 Install the YouTube packages once: `pip install -r requirements-publish.txt`.
 

@@ -1,0 +1,78 @@
+# Make ONE test video with the new quality pipeline and attach it to the run.
+# Nothing is uploaded to YouTube.
+#
+# Run it from the Actions tab: "test-quality" -> "Run workflow", then download the
+# mp4 from the run page under "Artifacts".
+#   voices:   Gemini TTS (GEMINI_API_KEY secret), else edge-tts; never espeak
+#   pictures: one full scene picture per shot (Gemini image if the key has free
+#             quota, else Stable Diffusion Turbo on the runner's CPU)
+#   sound:    soft CC0 background music + sound effects
+name: test-quality
+
+on:
+  workflow_dispatch:
+    inputs:
+      story:
+        description: Built-in story
+        default: talkative_tortoise
+        type: string
+
+env:
+  PYTHON_VERSION: "3.11"
+  HF_HUB_DISABLE_TELEMETRY: "1"
+  MODEL_CACHE_KEY: hf-sd-turbo-fp16-v1
+  REMBG_CACHE_KEY: rembg-u2net-v1
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-local-sd.txt
+      - name: Install system tools (ffmpeg only; no espeak)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Install HARMIS + local_sd (CPU-only torch)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt -r requirements-local-sd.txt
+      - name: Restore Stable Diffusion Turbo model
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ env.MODEL_CACHE_KEY }}
+      - name: Restore rembg model
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.u2net
+          key: ${{ env.REMBG_CACHE_KEY }}
+      - name: Check the Gemini key
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::warning::No GEMINI_API_KEY secret: voices fall back to edge-tts and pictures to local_sd."
+          fi
+      - name: Make the pictures
+        continue-on-error: true   # a failed picture is retried by main, or put together simply
+        run: python -m harmis.prepare --story "${{ inputs.story }}" --lang hindi --style 3d_cartoon --providers gemini,local_sd
+      - name: Make the video
+        run: python -m harmis.main --story "${{ inputs.story }}" --lang hindi --style 3d_cartoon --providers gemini,local_sd --offline
+      - name: Collect the scene pictures too
+        if: always()
+        run: mkdir -p output/shots && cp -r cache/shots/* output/shots/ 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-quality-${{ inputs.story }}-${{ github.run_number }}
+          path: |
+            output/*.mp4
+            output/*.json
+            output/shots/
+          if-no-files-found: warn
+          retention-days: 7

@@ -51,15 +51,15 @@ def main():
 
     chain, library = setup(args)
     story = script.get_script(args.genre, args.lang, library, story=args.story, fmt=args.format)
-    needed = library.needed_pictures(story)
-
-    if args.list_file:
+    if args.list_file:  # the prepare-pictures workflow makes (and commits) the character pictures
+        needed = library.needed_pictures(story, shots=False)
         missing = [item for item in needed if args.refresh_images or not library.is_ready(item)]
         with open(args.list_file, "w") as file:
             json.dump(missing, file)
         print(f"[prepare] {len(needed)} pictures needed, {len(missing)} missing: {', '.join(missing) or 'none'}")
         return
 
+    needed = library.needed_pictures(story)
     items = [resolve_item(library, needed, args.only)] if args.only else needed
     for item in items:
         library.make_picture(item)

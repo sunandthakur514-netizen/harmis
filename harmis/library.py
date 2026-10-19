@@ -3,7 +3,6 @@
 Characters live in harmis/assets/characters/<id>/:
     character.yaml   who they are and how they look (written once, never changes)
     custom.png       YOUR OWN picture (optional). Always wins over generated ones.
-    blink.png        optional eyes-closed version of custom.png, used for blinking
     <style>.png      generated picture with a transparent background (cached)
     <style>.json     which prompt and provider made it
 
@@ -12,6 +11,10 @@ Backgrounds live in harmis/assets/backgrounds/:
     <scene>.png           YOUR OWN background (optional). Always wins.
     <scene>__<style>.png        generated vertical background (short videos), cached + .json
     <scene>__<style>__wide.png  generated 16:9 background (long videos), cached + .json
+
+Scene pictures ("shots", see shots.py) show the characters acting in each part
+of a story; they are cached in cache/shots/<story>/. The character pictures are
+their references (Gemini) and the fallback when a shot cannot be made.
 
 A picture is generated once and then reused in every video, so characters look
 the same each time. If the description, style or safety words change, the prompt
@@ -27,7 +30,7 @@ import numpy as np
 import yaml
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
 
-from . import lipsync
+from . import shots as shot_plan
 from .config import CONFIG
 
 ASSETS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
@@ -87,12 +90,6 @@ def short_style(style):
 def compact_character_prompt(character, style):
     return make_safe(f"{short_style(style)}, {SAFE_CORE}, single character, alone, full body, centered, "
                      f"plain white background, {character['description'].strip()}")
-
-
-def face_prompt(character, style):
-    """Prompt for repainting the mouth / eyes (lip movement variants)."""
-    return make_safe(f"{short_style(style)}, {SAFE_CORE}, close-up of the face, "
-                     f"{character['description'].strip()}")
 
 
 def compact_background_prompt(description, style, mood):
@@ -187,7 +184,8 @@ class Library:
         self.refresh = refresh  # True = ignore cached generated pictures
         self.fmt = fmt          # "short" (vertical) or "long" (16:9) backgrounds
         self.status = {}        # picture label -> "cached", "your own picture", provider name or "shapes"
-        self.base_paths = {}    # character id -> file of its picture (for the lip-movement variants)
+        self.shots = None       # shots of the current story (see shots.py)
+        self._pictures = {}     # character id -> picture, loaded once per run
         self.characters = {}    # id -> data from character.yaml
         for folder in sorted(os.listdir(CHARACTER_DIR)):
             path = os.path.join(CHARACTER_DIR, folder, "character.yaml")
@@ -229,7 +227,7 @@ class Library:
             "description": make_safe(look) or f"a friendly Indian {person} wearing colourful everyday clothes",
         }
         with open(os.path.join(folder, "character.yaml"), "w", encoding="utf-8") as file:
-            file.write(f"# Added automatically for a Gemini story. Edit freely.\n")
+            file.write("# Added automatically for a Gemini story. Edit freely.\n")
             yaml.safe_dump(data, file, allow_unicode=True, sort_keys=False)
         data["id"] = char_id
         self.characters[char_id] = data
@@ -238,11 +236,15 @@ class Library:
 
     def character_image(self, data):
         """Transparent RGBA picture of a character, or None (then shapes are drawn)."""
+        if data["id"] not in self._pictures:
+            self._pictures[data["id"]] = self._character_image(data)
+        return self._pictures[data["id"]]
+
+    def _character_image(self, data):
         folder = os.path.join(CHARACTER_DIR, data["id"])
         custom = os.path.join(folder, "custom.png")
         if os.path.exists(custom):
             image = Image.open(custom)
-            self.base_paths[data["id"]] = custom
             self.status[f"character {data['id']}"] = "your own picture"
             print(f"[library] {data['id']}: using your custom.png")
             return image.convert("RGBA") if has_transparency(image.convert("RGBA")) else remove_background(image)
@@ -253,7 +255,6 @@ class Library:
         if not self.refresh:
             cached = _load_cached(png, meta, prompt)
             if cached is not None:
-                self.base_paths[data["id"]] = png
                 self.status[f"character {data['id']}"] = "cached"
                 print(f"[library] {data['id']}: using cached {self.style}.png")
                 return cached.convert("RGBA")
@@ -268,54 +269,7 @@ class Library:
         cut = remove_background(image)
         cut.save(png)
         _save_meta(meta, prompt, provider, self.style)
-        self.base_paths[data["id"]] = png
         return cut
-
-    def boxes(self, data, base):
-        """Mouth and eyes boxes from character.yaml, or found now and written into it."""
-        mouth, eyes = data.get("mouth_box"), data.get("eyes_box")
-        if mouth and eyes:
-            return [float(v) for v in mouth], [float(v) for v in eyes]
-        mouth, eyes, method = lipsync.find_boxes(base, data.get("type", "human"))
-        lipsync.save_boxes_to_yaml(os.path.join(CHARACTER_DIR, data["id"], "character.yaml"), mouth, eyes, method)
-        data["mouth_box"], data["eyes_box"] = mouth, eyes
-        print(f"[lipsync] {data['id']}: mouth/eyes found by {method}, saved in character.yaml")
-        return mouth, eyes
-
-    def character_frames(self, data, base):
-        """Picture + lip-movement variants: {"closed", "half", "open", "blink", "mouth_box", "mouth_mode"}.
-
-        Variants are made with local_sd when it is available (and cached); otherwise
-        the animation draws a simple mouth over mouth_box.
-        """
-        if base is None:
-            return None
-        mouth, eyes = self.boxes(data, base)
-        frames = {"closed": base, "mouth_box": mouth, "eyes_box": eyes, "mouth_mode": "drawn"}
-        base_path = self.base_paths.get(data["id"])
-        label = f"mouth {data['id']}"
-        cached = None if (self.refresh or not base_path) else lipsync.load_variants(base_path, mouth, eyes)
-        if cached is None and base_path:
-            pipe = self.chain.local_pipe()
-            if pipe is not None:
-                lipsync.make_variants(pipe, base, base_path, mouth, eyes, face_prompt(data, self.style),
-                                      data.get("seed", 1), data["id"])
-                cached = lipsync.load_variants(base_path, mouth, eyes)
-        if cached is not None:
-            info, images = cached
-            frames.update(images)
-            frames["mouth_mode"] = info["mouth"]
-            self.status[label] = f"variants: mouth {info['mouth']}, blink {info['blink']}"
-        else:
-            self.status[label] = "drawn mouth (local_sd not available to make variants)"
-        user_blink = self.blink_image(data)  # your own blink.png always wins
-        if user_blink is not None:
-            frames["blink"] = user_blink.resize(base.size)
-        return frames
-
-    def blink_image(self, data):
-        path = os.path.join(CHARACTER_DIR, data["id"], "blink.png")
-        return Image.open(path).convert("RGBA") if os.path.exists(path) else None
 
     # ----- backgrounds -----
     def background_image(self, scene):
@@ -355,35 +309,94 @@ class Library:
         _save_meta(meta, prompt, provider, self.style)
         return image
 
+    # ----- scene pictures (shots) -----
+    def plan_shots(self, script):
+        """Split the story into shots and describe each one (see shots.py)."""
+        self.shots = shot_plan.describe(script, shot_plan.plan(script, self), self)
+        self.script = script
+        return self.shots
+
+    def _shot_files(self, shot):
+        name = f"{shot['index']:02d}__{self.style}{CACHE_SUFFIX[self.fmt]}"
+        folder = os.path.join(shot_plan.SHOT_DIR, shot_plan.story_key(self.script))
+        return os.path.join(folder, name + ".png"), os.path.join(folder, name + ".json")
+
+    def _shot_prompts(self, shot):
+        mood = CONFIG["genres"][self.genre].get("mood", "")
+        return shot_plan.prompts(shot, self.script, self, style_text(self.style), short_style(self.style),
+                                 SAFE_CORE, mood, COMPOSITION[self.fmt])
+
+    def shot_image(self, shot):
+        """The full scene picture for one shot, or None (then a simple picture is put together)."""
+        prompt, compact, cast = self._shot_prompts(shot)
+        png, meta = self._shot_files(shot)
+        label = f"shot {shot['index']}"
+        if not self.refresh:
+            cached = _load_cached(png, meta, prompt)
+            if cached is not None:
+                self.status[label] = "cached"
+                return cached.convert("RGB")
+        references = []
+        for name, char_id in cast if self.chain.providers else []:  # each character's own picture keeps them looking the same (Gemini)
+            picture = self.character_image(self.characters[char_id])
+            if picture is not None:
+                references.append((name, picture))
+        size = BACKGROUND_SIZE[self.fmt]
+        print(f"[shots] {label}: {shot['action'][:90]}")
+        image, provider = self.chain.generate(prompt, *size, seed=shot_plan.story_seed(self.script), label=label,
+                                              negative=CONFIG["safety"]["negative"], compact=compact,
+                                              references=references)
+        self.status[label] = provider
+        if image is None:
+            return None
+        image = ImageOps.fit(image, size)
+        os.makedirs(os.path.dirname(png), exist_ok=True)
+        image.save(png)
+        _save_meta(meta, prompt, provider, self.style)
+        return image
+
     # ----- everything one video needs -----
     def load_visuals(self, script):
-        """Get (or make) every picture for a script. Missing pictures are None."""
-        scenes = []
-        for line in script["lines"]:
-            if line.get("scene") and line["scene"] not in scenes:
-                scenes.append(line["scene"])
-        visuals = {"backgrounds": {scene: self.background_image(scene) for scene in scenes},
-                   "characters": {}, "narrator": None}
-        for character in script["characters"]:
-            data = self.characters[character["id"]]
-            base = self.character_image(data)
-            visuals["characters"][character["name"]] = {"image": base, "frames": self.character_frames(data, base)}
-        narrator_id = script["narrator"].get("id")
-        if narrator_id:
-            visuals["narrator"] = self.character_image(self.characters[narrator_id])
+        """Get (or make) every picture for a script. Missing pictures are None.
+
+        {"shots": [picture per shot], "shot_plan": [...], "backgrounds": {scene: cached picture},
+         "characters": {name: cut-out}} - the last two only for shots that could not be made.
+        """
+        shots = self.plan_shots(script)
+        visuals = {"shots": [self.shot_image(shot) for shot in shots], "shot_plan": shots,
+                   "backgrounds": {}, "characters": {}}
+        for shot, picture in zip(shots, visuals["shots"]):
+            if picture is not None:
+                continue
+            if shot["scene"] and shot["scene"] not in visuals["backgrounds"]:
+                visuals["backgrounds"][shot["scene"]] = self.cached_background(shot["scene"])
+            for character in script["characters"]:
+                if character["id"] in shot["cast"] and character["name"] not in visuals["characters"]:
+                    visuals["characters"][character["name"]] = self.character_image(self.characters[character["id"]])
         return visuals
 
-    # ----- used by `harmis.prepare --list-file / --only` (GitHub Actions) -----
-    def needed_pictures(self, script):
-        """Every picture a script needs, as ["scene:<name>", "character:<id>", ...]."""
-        items = []
-        for line in script["lines"]:
-            if line.get("scene") and f"scene:{line['scene']}" not in items:
-                items.append(f"scene:{line['scene']}")
-        for character in script["characters"]:
-            items.append(f"character:{character['id']}")
-        if script["narrator"].get("id"):
-            items.append(f"character:{script['narrator']['id']}")
+    def cached_background(self, scene):
+        """A background that already exists (your own or cached), without asking any provider."""
+        custom = os.path.join(BACKGROUND_DIR, f"{scene}.png")
+        if os.path.exists(custom):
+            return Image.open(custom).convert("RGB")
+        if scene not in self.scenes:
+            return None
+        base = os.path.join(BACKGROUND_DIR, f"{scene}__{self.style}{CACHE_SUFFIX[self.fmt]}")
+        prompt = background_prompt(self.scenes[scene], self.style, CONFIG["genres"][self.genre].get("mood", ""),
+                                   self.fmt)
+        cached = _load_cached(base + ".png", base + ".json", prompt)
+        return cached.convert("RGB") if cached is not None else None
+
+    # ----- used by `harmis.prepare` (and its GitHub Actions workflow) -----
+    def needed_pictures(self, script, shots=True):
+        """Every picture a script needs, as ["character:<id>", ..., "shot:<n>", ...].
+
+        Character pictures are committed and reused; shots belong to one video.
+        """
+        items = [f"character:{character['id']}" for character in script["characters"]]
+        if shots:
+            items += [f"shot:{shot['index']}" for shot in self.plan_shots(script)]
         return items
 
     def is_ready(self, item):
@@ -392,32 +405,21 @@ class Library:
         if kind == "character":
             data = self.characters[name]
             folder = os.path.join(CHARACTER_DIR, name)
-            custom = os.path.join(folder, "custom.png")
-            png, meta = os.path.join(folder, f"{self.style}.png"), os.path.join(folder, f"{self.style}.json")
-            if os.path.exists(custom):
-                png = custom
-            elif _load_cached(png, meta, character_prompt(data, self.style)) is None:
-                return False
-            # The picture exists; are its lip-movement variants made too?
-            if not (data.get("mouth_box") and data.get("eyes_box")):
-                return False
-            return lipsync.load_variants(png, [float(v) for v in data["mouth_box"]],
-                                         [float(v) for v in data["eyes_box"]]) is not None
-        else:
-            if os.path.exists(os.path.join(BACKGROUND_DIR, f"{name}.png")):
+            if os.path.exists(os.path.join(folder, "custom.png")):
                 return True
-            if name not in self.scenes:
-                return True  # unknown scene: nothing to make
-            base = os.path.join(BACKGROUND_DIR, f"{name}__{self.style}{CACHE_SUFFIX[self.fmt]}")
-            png, meta = base + ".png", base + ".json"
-            prompt = background_prompt(self.scenes[name], self.style,
-                                       CONFIG["genres"][self.genre].get("mood", ""), self.fmt)
-        return _load_cached(png, meta, prompt) is not None
+            png, meta = os.path.join(folder, f"{self.style}.png"), os.path.join(folder, f"{self.style}.json")
+            return _load_cached(png, meta, character_prompt(data, self.style)) is not None
+        if kind == "shot":
+            shot = self.shots[int(name)]
+            png, meta = self._shot_files(shot)
+            return _load_cached(png, meta, self._shot_prompts(shot)[0]) is not None
+        return self.cached_background(name) is not None
 
     def make_picture(self, item):
-        """Get or make one picture ("scene:<name>" or "character:<id>")."""
+        """Get or make one picture ("character:<id>", "shot:<n>" or "scene:<name>")."""
         kind, name = item.split(":", 1)
         if kind == "character":
-            data = self.characters[name]
-            return self.character_frames(data, self.character_image(data))
+            return self.character_image(self.characters[name])
+        if kind == "shot":
+            return self.shot_image(self.shots[int(name)])
         return self.background_image(name)

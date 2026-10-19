@@ -15,6 +15,7 @@ import argparse
 import collections
 import datetime
 import os
+import sys
 import tempfile
 
 from . import animate, script, voice
@@ -134,7 +135,7 @@ def main():
                                   story=args.story, fmt=fmt)
 
         # 2. Voices
-        voiced = voice.make_voices(story, os.path.join(work_dir, "audio0"))
+        voiced = voice.make_voices(story, os.path.join(work_dir, "audio0"), library=library)
         length = spoken_length(voiced, fmt)
 
         if fmt == "short" and length > max_length and not args.story:
@@ -144,7 +145,7 @@ def main():
                 if other["title"] == story["title"]:
                     continue
                 print(f"[main] Story is longer than {max_length:.0f}s, trying: {other['title']}")
-                other_voiced = voice.make_voices(other, os.path.join(work_dir, f"audio{attempt}"))
+                other_voiced = voice.make_voices(other, os.path.join(work_dir, f"audio{attempt}"), library=library)
                 if spoken_length(other_voiced, fmt) < spoken_length(best[1], fmt):
                     best = (other, other_voiced)
                 if spoken_length(other_voiced, fmt) <= max_length:
@@ -158,7 +159,8 @@ def main():
             change = max(-10, min(25, change))
             print(f"[main] Long video would be {length / 60:.1f} min; re-making voices {change:+d}% "
                   f"{'faster' if change > 0 else 'slower'} to fit {min_length / 60:.0f}-{max_length / 60:.0f} min.")
-            voiced = voice.make_voices(story, os.path.join(work_dir, "audio_paced"), rate_change=change)
+            voiced = voice.make_voices(story, os.path.join(work_dir, "audio_paced"), rate_change=change,
+                                      library=library)
             length = spoken_length(voiced, fmt)
             if not min_length <= length <= max_length:
                 print(f"[main] Note: this long video will be {length / 60:.1f} minutes "
@@ -192,4 +194,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except voice.VoiceError as error:  # never publish a robotic or silent voice from GitHub Actions
+        sys.exit(f"[voice] {error}")

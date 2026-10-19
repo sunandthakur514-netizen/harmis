@@ -6,18 +6,14 @@ Two formats (see config.yaml -> formats):
          "Like & Subscribe" style ending card
 
 Layers, from back to front:
-  1. the scene background (an AI picture from the library, or a bright
-     Indian-style drawn background) with slow Ken Burns camera movement and
-     crossfades when the scene changes
-  2. the characters: transparent PNGs from the character library. The speaker
-     bounces, grows a little and glows, and its mouth flaps with the voice
-     (closed / half-open / open pictures, chosen from the loudness every 80 ms);
-     everyone blinks every 3-5 s and breathes gently. Characters without a picture are drawn as
-     simple shapes whose mouth moves with the voice. In long videos each scene
-     shows only the characters who are in it.
-  3. a small round narrator picture while the narrator speaks
-  4. the title (short videos), big subtitles with the speaker's name, and a 13+
-     badge for horror
+  1. one full scene picture per shot (see shots.py): the characters acting in
+     the scene, with a slow Ken Burns camera move (zoom and pan, a different
+     direction each shot) and a soft crossfade to the next picture. If a shot
+     could not be made, a simple picture is put together from the background
+     and the character pictures (or drawn shapes).
+  2. the title (short videos), subtitles with the speaker's name, and a 13+
+     badge for horror; long videos get an intro title card and an ending card.
+Sound (sound.py): the voices, soft background music and small sound effects.
 
 Memory: every frame is drawn when it is needed and thrown away, all voices are
 mixed into one audio file first, and the video is rendered in pieces of
@@ -32,21 +28,18 @@ import math
 import os
 import random
 import subprocess
-import wave
-import zlib
 
 import imageio_ffmpeg
 import numpy as np
-from moviepy import AudioFileClip, VideoClip
+from moviepy import VideoClip
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps, features
 
-from . import lipsync
+from . import sound
 from .config import CONFIG
 from .script import NARRATOR
 
 FADE = float(CONFIG["video"]["crossfade_seconds"])  # crossfade between scenes
 GAP = 0.35            # pause between lines
-AUDIO_RATE = 24000    # sample rate of the mixed voice track
 
 # Colours and style for each genre (used by the drawn fallback background and shapes).
 THEMES = {
@@ -441,52 +434,6 @@ def render_end_card(base, lang, theme, layout):
 
 
 # ---------------------------------------------------------------------------
-# Character pictures
-# ---------------------------------------------------------------------------
-def _dim(image):
-    dim = ImageEnhance.Brightness(image.convert("RGB")).enhance(0.8).convert("RGBA")
-    dim.putalpha(image.getchannel("A"))
-    return dim
-
-
-def prepare_character(frames, layout):
-    """Resize a character's pictures once (closed / half / open mouth, blink) and
-    make dimmed copies and a soft glow."""
-    image = frames["closed"]
-    scale = min(layout.char_height / image.height, layout.char_max_w / image.width)
-    size = (max(1, int(image.width * scale)), max(1, int(image.height * scale)))
-    normal = image.resize(size, Image.LANCZOS)
-    variants = {key: frames[key].resize(size, Image.LANCZOS) for key in ("half", "open", "blink") if frames.get(key)}
-    alpha = normal.getchannel("A")
-    pad = 40
-    glow_alpha = Image.new("L", (normal.width + 2 * pad, normal.height + 2 * pad), 0)
-    glow_alpha.paste(alpha, (pad, pad))
-    glow_alpha = glow_alpha.filter(ImageFilter.GaussianBlur(18)).point(lambda a: min(255, int(a * 1.6)))
-    glow = Image.new("RGBA", glow_alpha.size, (255, 235, 150, 0))
-    glow.putalpha(glow_alpha)
-    mouth_box = frames.get("mouth_box")
-    drawn = frames.get("mouth_mode") != "inpainted" or "open" not in variants
-    return {"normal": normal, "dim": _dim(normal), "glow": glow, "pad": pad, **variants,
-            "dim_blink": _dim(variants["blink"]) if "blink" in variants else None,
-            "mouth_box": mouth_box, "drawn_mouth": bool(drawn and mouth_box),
-            "colours": lipsync.mouth_colours(normal, mouth_box) if mouth_box else None}
-
-
-def render_cameo(image, size):
-    """A round picture of the narrator's head and shoulders."""
-    square = image.crop((0, 0, image.width, min(image.width, image.height)))
-    square = ImageOps.fit(square.convert("RGBA"), (size, size))
-    cameo = Image.new("RGBA", (size + 16, size + 16), (0, 0, 0, 0))
-    ImageDraw.Draw(cameo).ellipse([0, 0, size + 15, size + 15], fill=(255, 255, 255, 235))
-    inner = Image.new("RGBA", (size, size), (255, 248, 230, 255))
-    inner.alpha_composite(square)
-    mask = Image.new("L", (size, size), 0)
-    ImageDraw.Draw(mask).ellipse([0, 0, size - 1, size - 1], fill=255)
-    cameo.paste(inner, (8, 8), mask)
-    return cameo
-
-
-# ---------------------------------------------------------------------------
 # Timeline, camera and sound
 # ---------------------------------------------------------------------------
 def build_timeline(voiced_lines, fmt="short"):
@@ -502,92 +449,27 @@ def build_timeline(voiced_lines, fmt="short"):
     return segments, total
 
 
-def scene_spans(segments, total, characters, layout):
-    """[{start, end, scene, cast}] - a new span starts whenever the scene (or its cast) changes."""
-    spans = []
-    for seg in segments:
-        key = (seg.get("scene"), tuple(seg["cast"]) if seg.get("cast") is not None else None)
-        if not spans or spans[-1]["key"] != key:
-            if spans:
-                spans[-1]["end"] = seg["start"]
-            spans.append({"start": 0.0 if not spans else seg["start"], "end": total, "key": key,
-                          "scene": seg.get("scene"), "cast": seg.get("cast"), "speakers": []})
-        if seg["speaker"] != NARRATOR and seg["speaker"] not in spans[-1]["speakers"]:
-            spans[-1]["speakers"].append(seg["speaker"])
-    if not spans:
-        spans = [{"start": 0.0, "end": total, "scene": None, "cast": None, "speakers": []}]
-    names = [c["name"] for c in characters]
-    for span in spans:
-        if not layout.cast_per_scene:
-            span["cast"] = names  # short videos: everyone is always on screen
-        elif span["cast"] is None:
-            span["cast"] = span["speakers"][:3]  # long videos: whoever talks in this scene
-    return spans
+CAMERA_MOVES = [  # (zoom from, zoom to, pan x from -> to, pan y from -> to), as fractions of the free room
+    (1.00, 1.12, (-0.6, 0.6), (0.2, -0.2)),
+    (1.12, 1.00, (0.6, -0.6), (-0.2, 0.2)),
+    (1.02, 1.14, (0.0, 0.0), (0.5, -0.4)),   # slow push in, rising
+    (1.10, 1.03, (-0.5, 0.5), (0.0, 0.0)),   # pull back while panning
+]
 
 
 def ken_burns(base, progress, index, layout):
-    """Slow camera move over a background: zoom in or out and drift sideways.
+    """Slow, smooth camera move over a picture: zoom and pan, a different move for each shot.
 
-    progress goes from 0 to 1 over the scene; index alternates the direction.
+    progress goes from 0 to 1 over the shot.
     """
     p = progress * progress * (3 - 2 * progress)  # smooth start and stop
-    zoom = 1.0 + 0.10 * (p if index % 2 == 0 else 1 - p)
+    z0, z1, (x0, x1), (y0, y1) = CAMERA_MOVES[index % len(CAMERA_MOVES)]
+    zoom = z0 + (z1 - z0) * p
     cw, ch = layout.bg_w / zoom, layout.bg_h / zoom
-    direction = 1 if index % 2 == 0 else -1
-    cx = layout.bg_w / 2 + direction * (layout.bg_w - cw) / 2 * (2 * p - 1) * 0.8
-    cy = layout.bg_h / 2 - (layout.bg_h - ch) / 2 * 0.3 * (2 * p - 1)
+    cx = layout.bg_w / 2 + (layout.bg_w - cw) / 2 * (x0 + (x1 - x0) * p)
+    cy = layout.bg_h / 2 + (layout.bg_h - ch) / 2 * (y0 + (y1 - y0) * p)
     box = (cx - cw / 2, cy - ch / 2, cx + cw / 2, cy + ch / 2)
-    return base.resize((layout.w, layout.h), Image.BILINEAR, box=box)
-
-
-def rhyme_beat(samples, volume=0.12, bpm=100):
-    """A soft dholak-like beat for rhymes: low 'dha' on the beat, high 'na' in between."""
-    sound = np.zeros(samples, dtype=np.float32)
-    hit_len = int(0.25 * AUDIO_RATE)
-    t = np.arange(hit_len) / AUDIO_RATE
-    dha = np.sin(2 * np.pi * 110 * t) * np.exp(-t * 18)
-    na = 0.6 * np.sin(2 * np.pi * 330 * t) * np.exp(-t * 30)
-    half_beat = int(30 / bpm * AUDIO_RATE)
-    for k, start in enumerate(range(0, samples, half_beat)):
-        hit = dha if k % 2 == 0 else na
-        end = min(start + hit_len, samples)
-        sound[start:end] += hit[:end - start]
-    return sound * volume
-
-
-def mix_audio(segments, total, path, fps, beat=False):
-    """Mix every voice line into one mono WAV at its start time.
-
-    Also measures how loud each line is in every video frame (for the shape
-    characters' mouths) and stores it in seg["loudness"]. Clips are read one at
-    a time, so memory stays small even for long videos.
-    """
-    track = np.zeros(int(total * AUDIO_RATE) + AUDIO_RATE, dtype=np.float32)
-    cache = {}
-    for seg in segments:
-        if seg["audio"] not in cache:  # rhymes reuse the same clips
-            with AudioFileClip(seg["audio"]) as clip:
-                samples = clip.to_soundarray(fps=AUDIO_RATE).astype(np.float32)
-            if samples.ndim > 1:
-                samples = samples.mean(axis=1)
-            step = AUDIO_RATE // fps
-            frames = max(1, len(samples) // step)
-            rms = np.sqrt(np.mean(samples[:frames * step].reshape(frames, step) ** 2, axis=1)) \
-                if len(samples) >= step else np.zeros(1)
-            loudness = None if rms.max() < 1e-4 else np.clip(rms / (rms.max() * 0.6), 0, 1)
-            cache[seg["audio"]] = (samples, loudness)  # a few MB even for long videos
-        samples, seg["loudness"] = cache[seg["audio"]]
-        start = int(seg["start"] * AUDIO_RATE)
-        track[start:start + len(samples)] += samples[:len(track) - start]
-    if beat:
-        track += rhyme_beat(len(track))
-    pcm = (np.clip(track, -1, 1) * 32767).astype(np.int16)
-    with wave.open(path, "wb") as file:
-        file.setnchannels(1)
-        file.setsampwidth(2)
-        file.setframerate(AUDIO_RATE)
-        file.writeframes(pcm.tobytes())
-    return path
+    return base.resize((layout.w, layout.h), Image.BICUBIC, box=box)
 
 
 def render_in_chunks(make_frame, total, layout, audio_path, out_path, work_dir):
@@ -623,65 +505,76 @@ def render_in_chunks(make_frame, total, layout, audio_path, out_path, work_dir):
 # ---------------------------------------------------------------------------
 # Put it all together
 # ---------------------------------------------------------------------------
-def make_video(script, voiced_lines, out_path, visuals, work_dir):
-    """Draw every frame, add the audio and save the mp4 to out_path.
+def fallback_picture(shot, visuals, script, theme, layout, drawn):
+    """A simple still for a shot that could not be made: background + characters, no movement."""
+    background = visuals["backgrounds"].get(shot["scene"]) if shot["scene"] else None
+    frame = ImageOps.fit(background, (layout.w, layout.h)) if background is not None else \
+        drawn.resize((layout.w, layout.h), Image.BILINEAR)
+    draw = ImageDraw.Draw(frame, "RGBA")
+    names = [c for c in script["characters"] if c["id"] in shot["cast"]][:3]
+    font = load_font(48 if layout.fmt == "short" else 40)
+    for i, (info, cx) in enumerate(zip(names, layout.positions(len(names)))):
+        picture = visuals["characters"].get(info["name"])
+        if picture is not None:
+            scale = min(layout.char_height / picture.height, layout.char_max_w / picture.width)
+            picture = picture.resize((max(1, int(picture.width * scale)), max(1, int(picture.height * scale))),
+                                     Image.LANCZOS)
+            draw.ellipse([cx - picture.width * 0.35, layout.baseline - 18, cx + picture.width * 0.35,
+                          layout.baseline + 18], fill=(0, 0, 0, 70))
+            frame.paste(picture, (int(cx - picture.width / 2), layout.baseline - picture.height), picture)
+        else:
+            colour = theme["characters"][i % len(theme["characters"])]
+            draw_character(draw, cx, layout.shape_cy, layout.shape_size, colour, ("round", "box")[i % 2],
+                           0.0, False, info, font, layout)
+    return frame.resize((layout.bg_w, layout.bg_h), Image.BICUBIC)
 
-    visuals comes from Library.load_visuals(): background pictures per scene and
-    character pictures (any of them may be None, then shapes are drawn instead).
+
+def shot_spans(segments, shots, total, line_count):
+    """[{start, end, shot}]: a new span whenever the picture changes."""
+    shot_of_line = {n: shot["index"] for shot in shots for n in shot["lines"]}
+    spans = []
+    for number, seg in enumerate(segments):
+        shot = shot_of_line.get(number % max(1, line_count), 0)  # rhymes repeat their lines
+        if not spans or spans[-1]["shot"] != shot:
+            if spans:
+                spans[-1]["end"] = seg["start"]
+            spans.append({"start": 0.0 if not spans else seg["start"], "end": total, "shot": shot})
+    return spans or [{"start": 0.0, "end": total, "shot": 0}]
+
+
+def make_video(script, voiced_lines, out_path, visuals, work_dir):
+    """Draw every frame, add the sound and save the mp4 to out_path.
+
+    visuals comes from Library.load_visuals(): one picture per shot (None when it
+    could not be made) plus what is needed to put a simple picture together.
     """
     genre, lang, fmt = script["genre"], script["lang"], script.get("format", "short")
     layout = Layout(fmt)
     theme = THEMES[genre]
     segments, total = build_timeline(voiced_lines, fmt)
     end_start = segments[-1]["end"] + GAP if segments else layout.intro
-    characters = script["characters"]
-    spans = scene_spans(segments, total, characters, layout)
+    shots = visuals["shot_plan"]
+    spans = shot_spans(segments, shots, total, len(script["lines"]))
     span_starts = [span["start"] for span in spans]
     seg_starts = [seg["start"] for seg in segments]
 
-    # ----- sound: one mixed track (also measures mouth movement) -----
-    audio_path = mix_audio(segments, total, os.path.join(work_dir, "voices.wav"), layout.fps,
-                           beat=genre == "kids_rhyme")
+    # ----- sound: voices + music + effects in one track -----
+    audio_path = os.path.join(work_dir, "soundtrack.wav")
+    effects = sound.mix(segments, total, audio_path, genre)
+    if effects:
+        print("[sound] Effects: " + ", ".join(f"{name} at {time:.1f}s" for time, name in effects))
 
-    # ----- backgrounds (one big image per scene, ready for the camera move) -----
+    # ----- one big picture per shot, ready for the camera move -----
     drawn = draw_background(theme, layout).resize((layout.bg_w, layout.bg_h), Image.BILINEAR)
     bases = {}
-    for span in spans:
-        if span["scene"] not in bases:
-            picture = visuals["backgrounds"].get(span["scene"])
-            bases[span["scene"]] = ImageOps.fit(picture, (layout.bg_w, layout.bg_h)) if picture is not None else drawn
-    on_pictures = any(p is not None for p in visuals["backgrounds"].values())
-
-    # ----- characters -----
-    colour_of = {c["name"]: theme["characters"][i % len(theme["characters"])] for i, c in enumerate(characters)}
-    shape_of = {c["name"]: ("round", "box")[i % 2] for i, c in enumerate(characters)}
-    info_of = {c["name"]: c for c in characters}
-    sprites = {}
-    for info in characters:
-        pictures = visuals["characters"].get(info["name"], {})
-        if pictures.get("image") is not None:
-            sprites[info["name"]] = prepare_character(pictures.get("frames") or {"closed": pictures["image"]}, layout)
-    # Everyone blinks every 3-5 seconds (different times for each character).
-    blinks = {c["name"]: lipsync.blink_times(total, zlib.crc32(c["name"].encode())) for c in characters}
-
-    def blinking(name, t):
-        times = blinks.get(name, [])
-        index = bisect.bisect_right(times, t) - 1
-        return index >= 0 and t - times[index] < 0.15
-
-    # Mouth movement for every line: closed / half / open, decided every ~80 ms from the voice.
-    for number, seg in enumerate(segments):
-        count = int(math.ceil((seg["end"] - seg["start"]) * layout.fps)) + 2
-        loud = seg["loudness"]
-        if loud is not None and len(loud) < count:
-            loud = np.pad(loud, (0, count - len(loud)))
-        seg["mouth_state"], seg["mouth_level"] = lipsync.mouth_track(loud, count, layout.fps, seed=number)
-    narrator = visuals.get("narrator")
-    cameo = render_cameo(narrator, layout.cameo_size) if narrator is not None else None
+    for shot, picture in zip(shots, visuals["shots"]):
+        bases[shot["index"]] = (ImageOps.fit(picture, (layout.bg_w, layout.bg_h), Image.LANCZOS)
+                                if picture is not None else
+                                fallback_picture(shot, visuals, script, theme, layout, drawn))
+    on_pictures = any(p is not None for p in visuals["shots"])
 
     # ----- text and cards -----
-    name_font = load_font(48 if fmt == "short" else 40)
-    labels = {c["name"]: c["label"] for c in characters}
+    labels = {c["name"]: c["label"] for c in script["characters"]}
     labels[NARRATOR] = script["narrator"]["label"]
 
     @functools.lru_cache(maxsize=3)  # only the current subtitle is kept in memory
@@ -691,16 +584,14 @@ def make_video(script, voiced_lines, out_path, visuals, work_dir):
 
     badge = render_badge(GROWN_UPS[lang]) if genre == "horror" else None
     if fmt == "short":
-        title, title_bottom = render_title(script["title"], theme, on_pictures, layout)
+        title, _ = render_title(script["title"], theme, on_pictures, layout)
         end_card = render_subtitle("", END_TEXT[lang] + ("...?" if genre == "horror" else "!"), theme["accent"], layout)
         intro_card = outro_card = None
-        cameo_pos = (40, title_bottom + 10)
         badge_pos = (layout.w - (badge.width if badge else 0) - 30, 330 if on_pictures else 40)
     else:
         title = end_card = None
-        intro_card = render_intro_card(bases[spans[0]["scene"]], script["title"], script.get("tagline", ""), theme, layout)
-        outro_card = render_end_card(bases[spans[-1]["scene"]], lang, theme, layout)
-        cameo_pos = (40, 40)
+        intro_card = render_intro_card(bases[spans[0]["shot"]], script["title"], script.get("tagline", ""), theme, layout)
+        outro_card = render_end_card(bases[spans[-1]["shot"]], lang, theme, layout)
         badge_pos = (layout.w - (badge.width if badge else 0) - 30, 30)
 
     def current_segment(t):
@@ -709,84 +600,32 @@ def make_video(script, voiced_lines, out_path, visuals, work_dir):
             return index, segments[index]
         return None, None
 
-    def background_at(t, index):
+    def picture_at(t, index):
         span = spans[index]
-        progress = min(1.0, max(0.0, (t - span["start"]) / max(0.1, span["end"] - span["start"])))
-        frame = ken_burns(bases[span["scene"]], progress, index, layout)
-        if index > 0 and t - span["start"] < FADE:  # crossfade from the previous scene
-            previous = ken_burns(bases[spans[index - 1]["scene"]], 1.0, index - 1, layout)
-            frame = Image.blend(previous, frame, (t - span["start"]) / FADE)
-        return frame  # RGB, so semi-transparent drawing blends
-
-    def draw_sprite(frame, sprite, cx, speaking, someone_speaks, local, t, i, name, seg):
-        """Paste one character picture with its idle / speaking movement."""
-        breathe = math.sin(t * 2.2 + i * 1.7)
-        sx, sy, lift = 1 - 0.004 * breathe, 1 + 0.012 * breathe, 0
-        dimmed = someone_speaks and not speaking
-        image = sprite["dim"] if dimmed else sprite["normal"]
-        if blinking(name, t) and sprite.get("blink") is not None:
-            image = sprite["dim_blink"] if dimmed else sprite["blink"]
-        elif speaking:
-            index = min(int(local * layout.fps), len(seg["mouth_state"]) - 1)
-            if sprite["drawn_mouth"]:  # no painted variants: draw a mouth that opens with the voice
-                image = lipsync.draw_mouth(sprite["normal"], sprite["mouth_box"],
-                                           float(seg["mouth_level"][index]), sprite["colours"])
-            else:
-                image = (sprite["normal"], sprite.get("half", sprite["normal"]), sprite["open"])[seg["mouth_state"][index]]
-        if speaking:
-            ease = min(1.0, local / 0.25)
-            sx = sy = 1 + 0.05 * ease
-            lift = int(16 * abs(math.sin(local * 6)) * ease)
-        w, h = int(image.width * sx), int(image.height * sy)
-        base = layout.baseline
-        ImageDraw.Draw(frame, "RGBA").ellipse([cx - w * 0.35, base - 18, cx + w * 0.35, base + 18], fill=(0, 0, 0, 70))
-        if speaking:  # warm glow behind the speaker
-            glow = sprite["glow"].resize((int(sprite["glow"].width * sx), int(sprite["glow"].height * sy)))
-            frame.paste(glow, (int(cx - glow.width / 2), int(base - h - lift - sprite["pad"] * sy)), glow)
-        image = image.resize((w, h), Image.BILINEAR)
-        frame.paste(image, (int(cx - w / 2), base - h - lift), image)
+        # The camera keeps moving through the crossfade, so nothing ever stands still.
+        length = max(0.1, span["end"] - span["start"] + FADE)
+        frame = ken_burns(bases[span["shot"]], min(1.0, max(0.0, (t - span["start"]) / length)), index, layout)
+        if index > 0 and t - span["start"] < FADE:  # crossfade from the previous shot
+            previous = spans[index - 1]
+            length = max(0.1, previous["end"] - previous["start"] + FADE)
+            before = ken_burns(bases[previous["shot"]], min(1.0, (t - previous["start"]) / length), index - 1, layout)
+            mix = (t - span["start"]) / FADE
+            frame = Image.blend(before, frame, mix * mix * (3 - 2 * mix))
+        return frame
 
     def make_frame(t):
         t = min(t, total - 1e-3)
-        # Long videos: intro title card, fading into the first scene.
+        # Long videos: intro title card, fading into the first shot.
         if intro_card is not None and t < layout.intro:
             if t < layout.intro - FADE:
                 return np.array(intro_card)
             mix = (t - (layout.intro - FADE)) / FADE
-            return np.array(Image.blend(intro_card, background_at(t, 0), mix))
+            return np.array(Image.blend(intro_card, picture_at(t, 0), mix))
 
-        span_index = bisect.bisect_right(span_starts, t) - 1
-        frame = background_at(t, span_index)
-        draw = ImageDraw.Draw(frame, "RGBA")
+        frame = picture_at(t, bisect.bisect_right(span_starts, t) - 1)
         seg_index, seg = current_segment(t)
-        someone_speaks = seg is not None and seg["speaker"] != NARRATOR
-
-        cast = spans[span_index]["cast"]
-        for i, (name, cx) in enumerate(zip(cast, layout.positions(len(cast)))):
-            speaking = seg is not None and seg["speaker"] == name
-            local = t - seg["start"] if speaking else 0.0
-            if name in sprites:
-                draw_sprite(frame, sprites[name], cx, speaking, someone_speaks, local, t, i, name, seg)
-                continue
-            # No picture: simple shape character whose mouth follows the (smoothed) voice.
-            mouth, bounce = 0.0, 0
-            if speaking:
-                mouth = float(seg["mouth_level"][min(int(local * layout.fps), len(seg["mouth_level"]) - 1)])
-                bounce = int(18 * abs(math.sin(local * 6)))
-            idle = int(8 * math.sin(t * 2 + i * 1.7))
-            blink = blinking(name, t)
-            draw_character(draw, cx, layout.shape_cy + idle - bounce, layout.shape_size, colour_of[name],
-                           shape_of[name], mouth, blink, info_of[name], name_font, layout)
-
         if title is not None:
             frame.paste(title, (0, 0), title)
-        # Narrator picture fades in while the narrator talks.
-        if cameo is not None and seg is not None and seg["speaker"] == NARRATOR:
-            fade = min(1.0, (t - seg["start"]) / 0.3, (seg["end"] - t) / 0.3)
-            faded = cameo.copy()
-            faded.putalpha(cameo.getchannel("A").point(lambda a: int(a * fade)))
-            frame.paste(faded, cameo_pos, faded)
-        # Subtitles and badge go on top.
         if seg is not None:
             sub = subtitle(seg_index)
             frame.paste(sub, (0, layout.h - layout.sub_height - 20), sub)

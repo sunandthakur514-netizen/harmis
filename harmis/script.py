@@ -238,7 +238,9 @@ def build_sample(sample, genre, lang, library, fmt="short"):
                 scene, cast = marker, None
             else:
                 scene, cast = marker[0], [by_id[cid]["name"] for cid in marker[1]]
-        lines.append({"speaker": line[0], "text": line[column], "scene": scene, "cast": cast})
+        lines.append({"speaker": line[0], "text": line[column], "scene": scene, "cast": cast,
+                      "action": sample.get("actions", {}).get(number),
+                      "english": line[3] if len(line) > 3 else None})
     return {
         "id": sample["id"],
         "source": sample.get("source", ""),

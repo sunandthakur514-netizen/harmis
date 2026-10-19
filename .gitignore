@@ -13,3 +13,6 @@ __pycache__/
 client_secret*.json
 *token*.json
 .env
+
+# Per-run caches: Gemini voice clips and scene pictures (each story is published once)
+cache/

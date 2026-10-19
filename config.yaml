@@ -34,7 +34,7 @@ formats:
 # ---------------------------------------------------------------------------
 image_providers:
   # Order to try them in. "shapes" (drawn by HARMIS) is always the last resort.
-  order: [pollinations, local_sd, gemini, huggingface]
+  order: [gemini, local_sd, pollinations, huggingface]
   # Stop asking a provider after this many REAL errors in a row in one run.
   # Rate limits (HTTP 429), timeouts and busy servers never count.
   disable_after_failures: 3
@@ -58,7 +58,6 @@ image_providers:
     model: stabilityai/sd-turbo
     variant: fp16             # download the half-size files (turned into full precision for the CPU)
     steps: 2                  # 1-4; more steps = a little better, a little slower
-    variant_steps: 4          # steps for repainting the mouth / eyes (lip-movement variants)
     size: 512                 # short side of the picture the model makes (then enlarged)
     max_side: 768             # long side limit for tall / wide pictures
     threads: 0                # CPU threads to use; 0 = all
@@ -66,7 +65,9 @@ image_providers:
     tries: 1                  # a local model does not get better by retrying
     delay_seconds: 0
 
-  gemini:                     # needs the GEMINI_API_KEY environment variable
+  gemini:                     # needs GEMINI_API_KEY; gets the character pictures as references.
+                              # If the key has no free image quota, it is skipped for the run
+                              # at the first "quota" answer and local_sd makes the pictures.
     model: gemini-2.5-flash-image
     timeout: 120
     tries: 3
@@ -80,6 +81,59 @@ image_providers:
     tries: 3
     delay_seconds: 5
     backoff_seconds: 20
+
+# ---------------------------------------------------------------------------
+# Voices (harmis/voice.py). Engines are tried in this order for a whole story.
+# Inside GitHub Actions espeak is never used: the run fails instead.
+# ---------------------------------------------------------------------------
+voice:
+  engines: [gemini, edge, espeak]
+  edge_tries: 3               # edge-tts attempts per line (waits 2 s, then 4 s)
+  allow_espeak: true          # on your own computer only
+  gemini:                     # needs GEMINI_API_KEY (free tier). Clips are cached in cache/tts/.
+    models: [gemini-2.5-flash-preview-tts]   # first one that exists is used; add newer ones in front
+    delay_seconds: 7          # pause between requests (free tier allows only a few per minute)
+    tries: 5                  # per line; rate limits wait as long as Google asks
+    timeout: 120
+    narrator_voices:          # prebuilt Gemini voices for the narrator of each genre
+      kids_story: Sulafat     # warm
+      kids_rhyme: Laomedeia   # upbeat
+      comedy: Puck            # upbeat
+      horror: Enceladus       # breathy
+    narrator_style:
+      horror: Tell this mystery story slowly in a low, suspenseful, whispery storyteller voice
+      comedy: Tell this funny family story with playful comic timing and a smile in the voice
+    # Characters get a voice that suits their gender and age, different for each one.
+    # To choose one yourself, add  gemini_voice: Puck  to their character.yaml.
+
+# ---------------------------------------------------------------------------
+# Scene pictures (harmis/shots.py): one full picture per part of the story,
+# showing the characters acting in it.
+# ---------------------------------------------------------------------------
+shots:
+  max_lines_per_shot: {short: 3, long: 4}   # a new picture at least this often
+  planner_model: gemini-2.5-flash           # writes what each picture shows (1 request per story)
+
+# ---------------------------------------------------------------------------
+# Sound (harmis/sound.py): music and effects are CC0, made by tools/make_sounds.py
+# ---------------------------------------------------------------------------
+audio:
+  music:                      # harmis/assets/music/<name>.ogg per genre (null = no music)
+    kids_story: lullaby
+    kids_rhyme: playful
+    comedy: playful
+    horror: null
+  music_volume: 0.14          # between lines
+  music_under_voice: 0.07     # while someone speaks
+  effects_volume: 0.35
+  effects:                    # harmis/assets/sfx/<name>.ogg plays when a line contains one of these
+    splash: ["छपाक", "छप से", "पानी में कूद", "पानी में गिर", "कीचड़ में", "डुबकी", "splash"]
+    whoosh: ["उड़", "हवा में", "फुर्र", "दौड़", "भागा", "भागे", "भागी", "fly", "flew", "whoosh"]
+    laugh: ["हा हा", "हाहा", "ही ही", "हँस", "हँसी", "laugh", "giggle"]
+    thud: ["धम", "धड़ाम", "गिर", "thud", "fell"]
+    twinkle: ["जादू", "चमक", "सोने का", "सोने की", "सोने के", "सुनहर", "तारे", "magic", "sparkle", "golden"]
+    boing: ["उछल", "कूद", "bounce", "jump"]
+    pop: ["पॉप", "pop"]
 
 # Character pictures get their background removed so they can stand on any scene.
 background_removal:

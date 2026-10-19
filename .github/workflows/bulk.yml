@@ -33,6 +33,7 @@ concurrency:
 env:
   PYTHON_VERSION: "3.11"
   HF_HUB_DISABLE_TELEMETRY: "1"
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}   # voices, scene descriptions and (if free quota) pictures
   MODEL_CACHE_KEY: hf-sd-turbo-fp16-v1
   REMBG_CACHE_KEY: rembg-u2net-v1
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -112,8 +113,8 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             requirements-local-sd.txt
-      - name: Install system tools (ffmpeg, espeak-ng fallback voice)
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng
+      - name: Install system tools (ffmpeg; no espeak - robotic voices are never used here)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - name: Install HARMIS + local_sd (CPU-only torch)
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
@@ -133,7 +134,7 @@ jobs:
         run: |
           LANG_=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("lang", "hindi"))')
           STYLE=$(python -c 'from harmis.config import CONFIG; print(CONFIG.get("daily", {}).get("style", "3d_cartoon"))')
-          echo "args=--story ${{ matrix.job.story }} --format ${{ matrix.job.format }} --lang $LANG_ --style $STYLE --providers local_sd" >> "$GITHUB_OUTPUT"
+          echo "args=--story ${{ matrix.job.story }} --format ${{ matrix.job.format }} --lang $LANG_ --style $STYLE --providers gemini,local_sd" >> "$GITHUB_OUTPUT"
       - name: Make missing pictures (local_sd)
         continue-on-error: true   # a failed picture is retried by main, or drawn as shapes
         run: python -m harmis.prepare ${{ steps.opts.outputs.args }}

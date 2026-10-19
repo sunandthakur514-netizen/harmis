@@ -12,6 +12,9 @@ Format of one sample:
                   (their look, voice and on-screen name come from character.yaml)
     "scenes":     {line number: scene} - the background changes at that line.
                   Scenes are listed in harmis/assets/backgrounds/scenes.yaml
+    "actions":    optional {line number: "what the picture shows"} in English; a new
+                  picture starts at each of these lines. Without it, Gemini (or the
+                  English line) describes each picture.
     "lines":      (speaker, hindi, hinglish, english)
                   speaker is "Narrator" or the "name" from a character.yaml.
 """
@@ -129,6 +132,21 @@ SAMPLES = {
             "source": "Jataka",
             "characters": ["kachhua", "hans"],
             "scenes": {0: "village_pond", 3: "sky_over_village", 5: "grassy_meadow"},
+            # What each picture shows (optional; a new picture starts at each of these lines).
+            "actions": {
+                0: "the little green tortoise sits on a rock at the edge of a lotus pond, happily chatting "
+                   "with two white swans standing in the shallow water beside him",
+                1: "the pond is almost dry with cracked mud; two white swans hold a wooden stick in their "
+                   "beaks and show it to the worried tortoise",
+                3: "two white swans fly high in the blue sky holding the ends of a wooden stick in their beaks, "
+                   "the green tortoise hangs from the middle of the stick by his mouth, a tiny village far below",
+                4: "high in the sky the tortoise opens his mouth to talk and lets go of the stick, "
+                   "the two flying swans look back at him in surprise",
+                5: "the green tortoise has landed softly on his back in thick green grass in a meadow, dizzy "
+                   "but unhurt, the two white swans landing gently next to him",
+                6: "the tortoise sits up in the meadow with a shy smile, promising to talk less, "
+                   "the two white swans smile kindly at him",
+            },
             "lines": [
                 (N, "एक तालाब में एक बातूनी कछुआ रहता था। उसके दोस्त थे दो हंस।",
                  "Ek talaab mein ek baatooni kachhua rehta tha. Uske dost the do hans.",
