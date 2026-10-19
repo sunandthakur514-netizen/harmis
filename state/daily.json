@@ -1,8 +1,9 @@
 {
   "short": {
-    "story": "kabutar_jaal",
-    "date": "2026-10-20T00:32+05:30",
+    "story": "bagula_kekda",
+    "date": "2026-10-20T02:19+05:30",
     "published": [
+      "bagula_kekda",
       "kabutar_jaal",
       "monkey_crocodile",
       "talkative_tortoise"
@@ -14,14 +15,16 @@
       "mythology"
     ],
     "2026-10-20": [
-      "kids_comedy"
+      "kids_comedy",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 0,
+    "index": 1,
     "episodes": {
-      "krishna": 0
+      "krishna": 0,
+      "ganesha": 0
     },
-    "last": "krishna"
+    "last": "ganesha"
   }
 }
