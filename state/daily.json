@@ -1,7 +1,14 @@
 {
   "short": {
-    "index": 0,
-    "story": "monkey_crocodile",
-    "date": "2026-10-16T13:59+05:30"
+    "story": "talkative_tortoise",
+    "date": "2026-10-19T18:17+05:30",
+    "published": [
+      "talkative_tortoise"
+    ]
+  },
+  "short_themes": {
+    "2026-10-19": [
+      "moral"
+    ]
   }
 }
