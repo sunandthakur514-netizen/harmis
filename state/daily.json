@@ -1,11 +1,12 @@
 {
   "short": {
-    "story": "birbal_kaue_ginti",
-    "date": "2026-10-20T22:39+05:30",
+    "story": "birbal_lakeer",
+    "date": "2026-10-21T00:51+05:30",
     "published": [
       "bagula_kekda",
       "bandar_mali",
       "birbal_kaue_ginti",
+      "birbal_lakeer",
       "chuhe_hathi",
       "kabutar_jaal",
       "monkey_crocodile",
@@ -25,15 +26,19 @@
       "mythology",
       "kids_comedy",
       "kids_comedy"
+    ],
+    "2026-10-21": [
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 2,
+    "index": 3,
     "episodes": {
       "krishna": 0,
       "ganesha": 0,
-      "hanuman": 0
+      "hanuman": 0,
+      "ramayana": 0
     },
-    "last": "hanuman"
+    "last": "ramayana"
   }
 }
