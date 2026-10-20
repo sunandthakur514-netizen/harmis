@@ -1,9 +1,10 @@
 {
   "short": {
-    "story": "bagula_kekda",
-    "date": "2026-10-20T02:19+05:30",
+    "story": "chuhe_hathi",
+    "date": "2026-10-20T13:34+05:30",
     "published": [
       "bagula_kekda",
+      "chuhe_hathi",
       "kabutar_jaal",
       "monkey_crocodile",
       "talkative_tortoise"
@@ -16,7 +17,8 @@
     ],
     "2026-10-20": [
       "kids_comedy",
-      "mythology"
+      "mythology",
+      "kids_comedy"
     ]
   },
   "mythology": {
