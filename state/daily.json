@@ -1,9 +1,10 @@
 {
   "short": {
-    "story": "chuhe_hathi",
-    "date": "2026-10-20T13:34+05:30",
+    "story": "bandar_mali",
+    "date": "2026-10-20T15:55+05:30",
     "published": [
       "bagula_kekda",
+      "bandar_mali",
       "chuhe_hathi",
       "kabutar_jaal",
       "monkey_crocodile",
@@ -18,15 +19,17 @@
     "2026-10-20": [
       "kids_comedy",
       "mythology",
-      "kids_comedy"
+      "kids_comedy",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 1,
+    "index": 2,
     "episodes": {
       "krishna": 0,
-      "ganesha": 0
+      "ganesha": 0,
+      "hanuman": 0
     },
-    "last": "ganesha"
+    "last": "hanuman"
   }
 }
