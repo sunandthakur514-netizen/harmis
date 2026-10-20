@@ -1,14 +1,15 @@
 {
   "short": {
-    "story": "bandar_mali",
-    "date": "2026-10-20T15:55+05:30",
+    "story": "teetar_bado_ka_aadar",
+    "date": "2026-10-20T19:21+05:30",
     "published": [
       "bagula_kekda",
       "bandar_mali",
       "chuhe_hathi",
       "kabutar_jaal",
       "monkey_crocodile",
-      "talkative_tortoise"
+      "talkative_tortoise",
+      "teetar_bado_ka_aadar"
     ]
   },
   "short_themes": {
@@ -20,7 +21,8 @@
       "kids_comedy",
       "mythology",
       "kids_comedy",
-      "mythology"
+      "mythology",
+      "kids_comedy"
     ]
   },
   "mythology": {
