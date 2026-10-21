@@ -1,7 +1,7 @@
 {
   "short": {
-    "story": "tenali_hara_ghoda",
-    "date": "2026-10-21T22:53+05:30",
+    "story": "daant_chamkao",
+    "date": "2026-10-22T01:03+05:30",
     "published": [
       "bagula_kekda",
       "bandar_mali",
@@ -9,6 +9,7 @@
       "birbal_kuan",
       "birbal_lakeer",
       "chuhe_hathi",
+      "daant_chamkao",
       "kabutar_jaal",
       "monkey_crocodile",
       "talkative_tortoise",
@@ -37,6 +38,9 @@
       "mythology",
       "mythology",
       "mythology"
+    ],
+    "2026-10-22": [
+      "fairy_tale"
     ]
   },
   "mythology": {
