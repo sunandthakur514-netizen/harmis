@@ -1,7 +1,7 @@
 {
   "short": {
-    "story": "tenali_billi",
-    "date": "2026-10-21T15:48+05:30",
+    "story": "tenali_kuan_shaadi",
+    "date": "2026-10-21T19:31+05:30",
     "published": [
       "bagula_kekda",
       "bandar_mali",
@@ -13,7 +13,8 @@
       "monkey_crocodile",
       "talkative_tortoise",
       "teetar_bado_ka_aadar",
-      "tenali_billi"
+      "tenali_billi",
+      "tenali_kuan_shaadi"
     ]
   },
   "short_themes": {
@@ -32,19 +33,21 @@
     "2026-10-21": [
       "mythology",
       "mythology",
+      "mythology",
       "mythology"
     ]
   },
   "mythology": {
-    "index": 5,
+    "index": 6,
     "episodes": {
       "krishna": 0,
       "ganesha": 0,
       "hanuman": 0,
       "ramayana": 0,
       "mahabharata": 0,
-      "shiva_parvati": 0
+      "shiva_parvati": 0,
+      "prahlad": 0
     },
-    "last": "shiva_parvati"
+    "last": "prahlad"
   }
 }
