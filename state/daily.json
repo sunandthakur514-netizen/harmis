@@ -1,7 +1,7 @@
 {
   "short": {
-    "story": "daant_chamkao",
-    "date": "2026-10-22T01:03+05:30",
+    "story": "phalon_ki_tokri",
+    "date": "2026-10-22T13:11+05:30",
     "published": [
       "bagula_kekda",
       "bandar_mali",
@@ -12,6 +12,7 @@
       "daant_chamkao",
       "kabutar_jaal",
       "monkey_crocodile",
+      "phalon_ki_tokri",
       "talkative_tortoise",
       "teetar_bado_ka_aadar",
       "tenali_billi",
@@ -40,11 +41,12 @@
       "mythology"
     ],
     "2026-10-22": [
-      "fairy_tale"
+      "fairy_tale",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 7,
+    "index": 8,
     "episodes": {
       "krishna": 0,
       "ganesha": 0,
@@ -53,8 +55,9 @@
       "mahabharata": 0,
       "shiva_parvati": 0,
       "prahlad": 0,
-      "dhruv": 0
+      "dhruv": 0,
+      "shravan": 0
     },
-    "last": "dhruv"
+    "last": "shravan"
   }
 }
