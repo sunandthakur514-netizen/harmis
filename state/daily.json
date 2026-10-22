@@ -1,7 +1,7 @@
 {
   "short": {
-    "story": "phalon_ki_tokri",
-    "date": "2026-10-22T13:11+05:30",
+    "story": "ginti_ke_tare",
+    "date": "2026-10-22T15:51+05:30",
     "published": [
       "bagula_kekda",
       "bandar_mali",
@@ -10,6 +10,7 @@
       "birbal_lakeer",
       "chuhe_hathi",
       "daant_chamkao",
+      "ginti_ke_tare",
       "kabutar_jaal",
       "monkey_crocodile",
       "phalon_ki_tokri",
@@ -42,7 +43,8 @@
     ],
     "2026-10-22": [
       "fairy_tale",
-      "mythology"
+      "mythology",
+      "fairy_tale"
     ]
   },
   "mythology": {
