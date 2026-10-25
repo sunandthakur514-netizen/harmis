@@ -64,16 +64,17 @@
       "science"
     ],
     "2026-10-25": [
-      "rhyme"
+      "rhyme",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 2,
+    "index": 3,
     "episodes": {
       "krishna": 1,
       "ganesha": 1,
       "hanuman": 1,
-      "ramayana": 0,
+      "ramayana": 1,
       "mahabharata": 0,
       "shiva_parvati": 0,
       "prahlad": 0,
@@ -82,6 +83,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "hanuman"
+    "last": "ramayana"
   }
 }
