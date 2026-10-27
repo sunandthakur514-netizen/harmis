@@ -22,13 +22,6 @@
     ]
   },
   "short_themes": {
-    "2026-10-21": [
-      "mythology",
-      "mythology",
-      "mythology",
-      "mythology",
-      "mythology"
-    ],
     "2026-10-22": [
       "fairy_tale",
       "mythology",
@@ -70,10 +63,13 @@
       "mythology",
       "kids_comedy",
       "kids_comedy"
+    ],
+    "2026-10-28": [
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 7,
+    "index": 8,
     "episodes": {
       "krishna": 1,
       "ganesha": 1,
@@ -87,6 +83,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "dhruv"
+    "last": "shravan"
   }
 }
