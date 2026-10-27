@@ -66,11 +66,12 @@
     "2026-10-27": [
       "kids_comedy",
       "mythology",
-      "kids_comedy"
+      "kids_comedy",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 6,
+    "index": 7,
     "episodes": {
       "krishna": 1,
       "ganesha": 1,
@@ -84,6 +85,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "prahlad"
+    "last": "dhruv"
   }
 }
