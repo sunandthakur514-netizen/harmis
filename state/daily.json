@@ -68,14 +68,15 @@
       "mythology",
       "mythology",
       "mythology",
+      "mythology",
       "mythology"
     ]
   },
   "mythology": {
-    "index": 0,
+    "index": 1,
     "episodes": {
       "krishna": 2,
-      "ganesha": 1,
+      "ganesha": 2,
       "hanuman": 1,
       "ramayana": 1,
       "mahabharata": 1,
@@ -86,6 +87,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "krishna"
+    "last": "ganesha"
   }
 }
