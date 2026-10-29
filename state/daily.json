@@ -65,15 +65,16 @@
       "mythology"
     ],
     "2026-10-29": [
-      "fairy_tale"
+      "fairy_tale",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 1,
+    "index": 2,
     "episodes": {
       "krishna": 2,
       "ganesha": 2,
-      "hanuman": 1,
+      "hanuman": 0,
       "ramayana": 1,
       "mahabharata": 1,
       "shiva_parvati": 1,
@@ -83,6 +84,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "ganesha"
+    "last": "hanuman"
   }
 }
