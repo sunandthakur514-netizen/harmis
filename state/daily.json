@@ -65,17 +65,18 @@
       "fairy_tale"
     ],
     "2026-10-30": [
-      "mystery"
+      "mystery",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 3,
+    "index": 4,
     "episodes": {
       "krishna": 2,
       "ganesha": 2,
       "hanuman": 0,
       "ramayana": 2,
-      "mahabharata": 1,
+      "mahabharata": 2,
       "shiva_parvati": 1,
       "prahlad": 1,
       "dhruv": 0,
@@ -83,6 +84,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "ramayana"
+    "last": "mahabharata"
   }
 }
