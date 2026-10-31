@@ -66,11 +66,12 @@
     "2026-10-31": [
       "science",
       "mythology",
-      "science"
+      "science",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 6,
+    "index": 7,
     "episodes": {
       "krishna": 2,
       "ganesha": 2,
@@ -84,6 +85,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "prahlad"
+    "last": "dhruv"
   }
 }
