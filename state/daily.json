@@ -68,13 +68,14 @@
     "2026-11-02": [
       "moral",
       "mythology",
-      "moral"
+      "moral",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 10,
+    "index": 0,
     "episodes": {
-      "krishna": 2,
+      "krishna": 0,
       "ganesha": 2,
       "hanuman": 0,
       "ramayana": 2,
@@ -86,6 +87,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "sudama"
+    "last": "krishna"
   }
 }
