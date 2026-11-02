@@ -66,11 +66,12 @@
       "rhyme"
     ],
     "2026-11-02": [
-      "moral"
+      "moral",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 9,
+    "index": 10,
     "episodes": {
       "krishna": 2,
       "ganesha": 2,
@@ -84,6 +85,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "nachiketa"
+    "last": "sudama"
   }
 }
