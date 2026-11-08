@@ -66,16 +66,17 @@
     "2026-11-08": [
       "rhyme",
       "mythology",
-      "rhyme"
+      "rhyme",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 2,
+    "index": 3,
     "episodes": {
       "krishna": 1,
       "ganesha": 1,
       "hanuman": 0,
-      "ramayana": 3,
+      "ramayana": 0,
       "mahabharata": 0,
       "shiva_parvati": 0,
       "prahlad": 1,
@@ -84,6 +85,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "hanuman"
+    "last": "ramayana"
   }
 }
