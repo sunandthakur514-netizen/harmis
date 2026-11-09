@@ -63,24 +63,25 @@
       "moral"
     ],
     "2026-11-10": [
-      "kids_comedy"
+      "kids_comedy",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 4,
+    "index": 5,
     "episodes": {
       "krishna": 1,
       "ganesha": 1,
       "hanuman": 0,
       "ramayana": 0,
       "mahabharata": 1,
-      "shiva_parvati": 0,
+      "shiva_parvati": 1,
       "prahlad": 1,
       "dhruv": 0,
       "shravan": 0,
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "mahabharata"
+    "last": "shiva_parvati"
   }
 }
