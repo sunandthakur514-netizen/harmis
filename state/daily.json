@@ -63,17 +63,18 @@
       "mystery"
     ],
     "2026-11-14": [
-      "science"
+      "science",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 3,
+    "index": 4,
     "episodes": {
       "krishna": 2,
       "ganesha": 2,
       "hanuman": 1,
       "ramayana": 1,
-      "mahabharata": 1,
+      "mahabharata": 2,
       "shiva_parvati": 1,
       "prahlad": 0,
       "dhruv": 0,
@@ -81,6 +82,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "ramayana"
+    "last": "mahabharata"
   }
 }
