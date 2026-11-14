@@ -22,13 +22,6 @@
     ]
   },
   "short_themes": {
-    "2026-11-08": [
-      "rhyme",
-      "mythology",
-      "rhyme",
-      "mythology",
-      "rhyme"
-    ],
     "2026-11-09": [
       "moral",
       "mythology",
@@ -67,6 +60,9 @@
       "mythology",
       "science",
       "mythology"
+    ],
+    "2026-11-15": [
+      "rhyme"
     ]
   },
   "mythology": {
