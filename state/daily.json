@@ -22,14 +22,6 @@
     ]
   },
   "short_themes": {
-    "2026-11-10": [
-      "kids_comedy",
-      "mythology",
-      "kids_comedy",
-      "mythology",
-      "kids_comedy",
-      "kids_comedy"
-    ],
     "2026-11-11": [
       "mythology",
       "mythology",
@@ -63,6 +55,9 @@
     ],
     "2026-11-16": [
       "moral"
+    ],
+    "2026-11-17": [
+      "kids_comedy"
     ]
   },
   "mythology": {
