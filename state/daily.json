@@ -57,11 +57,12 @@
       "mythology"
     ],
     "2026-11-22": [
-      "rhyme"
+      "rhyme",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 6,
+    "index": 7,
     "episodes": {
       "krishna": 0,
       "ganesha": 0,
@@ -75,6 +76,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "prahlad"
+    "last": "dhruv"
   }
 }
