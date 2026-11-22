@@ -59,11 +59,12 @@
       "rhyme"
     ],
     "2026-11-23": [
-      "moral"
+      "moral",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 7,
+    "index": 8,
     "episodes": {
       "krishna": 0,
       "ganesha": 0,
@@ -77,6 +78,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "dhruv"
+    "last": "shravan"
   }
 }
