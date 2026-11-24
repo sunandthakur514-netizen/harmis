@@ -22,12 +22,6 @@
     ]
   },
   "short_themes": {
-    "2026-11-18": [
-      "mythology",
-      "mythology",
-      "mythology",
-      "mythology"
-    ],
     "2026-11-19": [
       "fairy_tale",
       "mythology",
@@ -64,13 +58,16 @@
       "mythology",
       "kids_comedy",
       "mythology"
+    ],
+    "2026-11-25": [
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 0,
+    "index": 1,
     "episodes": {
       "krishna": 1,
-      "ganesha": 0,
+      "ganesha": 1,
       "hanuman": 0,
       "ramayana": 2,
       "mahabharata": 0,
@@ -81,6 +78,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "krishna"
+    "last": "ganesha"
   }
 }
