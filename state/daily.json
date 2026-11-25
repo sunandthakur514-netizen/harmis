@@ -22,13 +22,6 @@
     ]
   },
   "short_themes": {
-    "2026-11-19": [
-      "fairy_tale",
-      "mythology",
-      "fairy_tale",
-      "mythology",
-      "fairy_tale"
-    ],
     "2026-11-20": [
       "mystery",
       "mythology",
@@ -65,6 +58,9 @@
       "mythology",
       "mythology",
       "mythology"
+    ],
+    "2026-11-26": [
+      "fairy_tale"
     ]
   },
   "mythology": {
