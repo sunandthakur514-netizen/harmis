@@ -62,11 +62,12 @@
     "2026-11-26": [
       "fairy_tale",
       "mythology",
-      "fairy_tale"
+      "fairy_tale",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 6,
+    "index": 7,
     "episodes": {
       "krishna": 1,
       "ganesha": 1,
@@ -80,6 +81,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "prahlad"
+    "last": "dhruv"
   }
 }
