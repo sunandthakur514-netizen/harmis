@@ -62,11 +62,12 @@
     "2026-11-27": [
       "mystery",
       "mythology",
-      "mystery"
+      "mystery",
+      "mythology"
     ]
   },
   "mythology": {
-    "index": 8,
+    "index": 9,
     "episodes": {
       "krishna": 1,
       "ganesha": 1,
@@ -80,6 +81,6 @@
       "nachiketa": 0,
       "sudama": 0
     },
-    "last": "shravan"
+    "last": "nachiketa"
   }
 }
